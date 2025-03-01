@@ -199,6 +199,37 @@ function render(){
     for (const interactable of interactables) {
         interactable.update();
     }
+    
+    // NEW: Killing mechanic - outline customers in red when nearby and kill on F key press
+    for (let i = 0; i < customers.length; i++){
+        const customer = customers[i];
+        const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
+        const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if(distance < 60){ // threshold for being "near"
+            ctx.save();
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(customer.img.x, customer.img.y, customer.img.w, customer.img.h);
+            // NEW: Draw creepy red "KILL?" text above the customer
+            ctx.font = "30px serif";
+            ctx.fillStyle = "red";
+            ctx.fillText("KILL?", customer.img.x, customer.img.y - 10);
+            ctx.restore();
+            customer.targeted = true;
+        } else {
+            customer.targeted = false;
+        }
+    }
+    if(input[70]){
+        for (let i = 0; i < customers.length; i++){
+            if(customers[i].targeted){
+                customers.splice(i, 1);
+                break;
+            }
+        }
+        input[70] = false;
+    }
 
     timer++;
     
