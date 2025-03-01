@@ -12,6 +12,7 @@ window.addEventListener('resize', () => {
 });
 
 const logoImgRef = document.getElementById("logo");
+const customerImgRef = document.getElementById("coin");
 
 const renderRate = 20;
 
@@ -37,56 +38,12 @@ const mapWalls = [
     new Rect(canvas.width-10,0,10,canvas.height,"red")
 ];
 
-function getCollision(rect1, rect2, buffer){ 
-    //                          UP      DOWN  LEFT  RIGHT
-    let collisionDetections = [false, false, false, false];
-    
-    // First check if there's any collision at all using AABB
-    if (rect1.x < rect2.x + rect2.w + buffer &&
-        rect1.x + rect1.w > rect2.x - buffer &&
-        rect1.y < rect2.y + rect2.h + buffer &&
-        rect1.y + rect1.h > rect2.y - buffer) {
-        
-        // There is a collision, now determine which sides
-        
-        // UP collision - top edge of rect1 is inside rect2
-        if (rect1.y > rect2.y - buffer && 
-            rect1.y < rect2.y + rect2.h + buffer &&
-            rect1.x + rect1.w > rect2.x && 
-            rect1.x < rect2.x + rect2.w) {
-            collisionDetections[0] = true;
-        }
-        
-        // DOWN collision - bottom edge of rect1 is inside rect2
-        if (rect1.y + rect1.h > rect2.y - buffer && 
-            rect1.y + rect1.h < rect2.y + rect2.h + buffer &&
-            rect1.x + rect1.w > rect2.x && 
-            rect1.x < rect2.x + rect2.w) {
-            collisionDetections[1] = true;
-        }
-        
-        // LEFT collision - left edge of rect1 is inside rect2
-        if (rect1.x > rect2.x - buffer && 
-            rect1.x < rect2.x + rect2.w + buffer &&
-            rect1.y + rect1.h > rect2.y && 
-            rect1.y < rect2.y + rect2.h) {
-            collisionDetections[2] = true;
-        }
-        
-        // RIGHT collision - right edge of rect1 is inside rect2
-        if (rect1.x + rect1.w > rect2.x - buffer && 
-            rect1.x + rect1.w < rect2.x + rect2.w + buffer &&
-            rect1.y + rect1.h > rect2.y && 
-            rect1.y < rect2.y + rect2.h) {
-            collisionDetections[3] = true;
-        }
-    }
-
-    return collisionDetections;
-}
-
 const collisionBuffer = 5;
 const playerSpeed = 5;
+
+const customers = [];
+var nextSpawnTime = Math.floor(Math.random() * 20) + 5;
+var timer = 0;
 
 function render(){
     ctx.fillStyle = "black";
@@ -137,16 +94,29 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
+    if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
+        const newCustomer = new Customer(customerImgRef, 200, 500, 50, 50);
+        newCustomer.img.vY = -1;
+        customers.push(newCustomer);
+        timer = 0;
+        nextSpawnTime = Math.floor(Math.random() * 20) + 5;
+    }
+
     logo.update();
     dialogBox.update();
     for (const wall of mapWalls) {
         wall.update();
     }
+
+    for (const customer of customers) {
+        customer.update();
+    }
+
+    timer++;
 }
 var updateLoop = window.setInterval(render, renderRate);
 
-function Rect(x, y, w, h, color)
-{
+function Rect(x, y, w, h, color){
     this.x = x;
     this.y = y;
     this.w = w;
@@ -156,8 +126,7 @@ function Rect(x, y, w, h, color)
     this.vX = 0; // Velocity
     this.vY = 0;
 
-    this.update = function()
-    {
+    this.update = function(){
         this.x += this.vX;
         this.y += this.vY;
 
@@ -166,8 +135,7 @@ function Rect(x, y, w, h, color)
     }
 }
 
-function Image(ref, x, y, w, h, angle)
-{
+function Image(ref, x, y, w, h, angle){
     this.x = x;
     this.y = y;
     this.w = w;
@@ -178,8 +146,7 @@ function Image(ref, x, y, w, h, angle)
     this.vX = 0; // Velocity
     this.vY = 0;
 
-    this.update = function update()
-    {
+    this.update = function update(){
         this.x += this.vX;
         this.y += this.vY;
         
@@ -195,6 +162,16 @@ function Image(ref, x, y, w, h, angle)
     }
 
     this.copy = function() { return new Image(ref, x, y, w, h, angle) }
+}
+
+function Customer(ref, x, y, w, h){
+    this.img = new Image(ref, x, y, w, h, 0);
+    this.hasOrdered = false;
+    this.hasEaten = false;
+
+    this.update = function update(){
+        this.img.update();
+    }
 }
 
 function DialogBox() {
@@ -293,3 +270,51 @@ dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
 dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
+
+function getCollision(rect1, rect2, buffer){ 
+    //                          UP      DOWN  LEFT  RIGHT
+    let collisionDetections = [false, false, false, false];
+    
+    // First check if there's any collision at all using AABB
+    if (rect1.x < rect2.x + rect2.w + buffer &&
+        rect1.x + rect1.w > rect2.x - buffer &&
+        rect1.y < rect2.y + rect2.h + buffer &&
+        rect1.y + rect1.h > rect2.y - buffer) {
+        
+        // There is a collision, now determine which sides
+        
+        // UP collision - top edge of rect1 is inside rect2
+        if (rect1.y > rect2.y - buffer && 
+            rect1.y < rect2.y + rect2.h + buffer &&
+            rect1.x + rect1.w > rect2.x && 
+            rect1.x < rect2.x + rect2.w) {
+            collisionDetections[0] = true;
+        }
+        
+        // DOWN collision - bottom edge of rect1 is inside rect2
+        if (rect1.y + rect1.h > rect2.y - buffer && 
+            rect1.y + rect1.h < rect2.y + rect2.h + buffer &&
+            rect1.x + rect1.w > rect2.x && 
+            rect1.x < rect2.x + rect2.w) {
+            collisionDetections[1] = true;
+        }
+        
+        // LEFT collision - left edge of rect1 is inside rect2
+        if (rect1.x > rect2.x - buffer && 
+            rect1.x < rect2.x + rect2.w + buffer &&
+            rect1.y + rect1.h > rect2.y && 
+            rect1.y < rect2.y + rect2.h) {
+            collisionDetections[2] = true;
+        }
+        
+        // RIGHT collision - right edge of rect1 is inside rect2
+        if (rect1.x + rect1.w > rect2.x - buffer && 
+            rect1.x + rect1.w < rect2.x + rect2.w + buffer &&
+            rect1.y + rect1.h > rect2.y && 
+            rect1.y < rect2.y + rect2.h) {
+            collisionDetections[3] = true;
+        }
+    }
+
+    return collisionDetections;
+}
