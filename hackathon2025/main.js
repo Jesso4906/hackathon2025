@@ -15,6 +15,7 @@ const logoImgRef = document.getElementById("logo");
 const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
 const walking2ImgRef = document.getElementById("walking2"); // added walking image reference
 const customerImgRef = document.getElementById("coin");
+const lobbyFloor = document.getElementById("floor");
 
 const renderRate = 20;
 
@@ -52,8 +53,13 @@ let walkFrameCounter = 0;
 let useWalkingFrame1 = true;
 
 function render(){
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Tiled background drawing (using tile size equal to player's size, 50x50)
+    const tileSize = 50;
+    for (let y = 0; y < canvas.height; y += tileSize) {
+        for (let x = 0; x < canvas.width; x += tileSize) {
+            ctx.drawImage(lobbyFloor, x, y, tileSize, tileSize);
+        }
+    }
 
     let leftBlocked = false;
     let rightBlocked = false;
