@@ -12,7 +12,10 @@ window.addEventListener('resize', () => {
 });
 
 const logoImgRef = document.getElementById("logo");
+const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
+const walking2ImgRef = document.getElementById("walking2"); // added walking image reference
 const customerImgRef = document.getElementById("coin");
+const lobbyFloor = document.getElementById("floor");
 
 const renderRate = 20;
 
@@ -79,9 +82,18 @@ const customers = [];
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
 var timer = 0;
 
+// Add variables to handle walking animation
+let walkFrameCounter = 0;
+let useWalkingFrame1 = true;
+
 function render(){
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Tiled background drawing (using tile size equal to player's size, 50x50)
+    const tileSize = 50;
+    for (let y = 0; y < canvas.height; y += tileSize) {
+        for (let x = 0; x < canvas.width; x += tileSize) {
+            ctx.drawImage(lobbyFloor, x, y, tileSize, tileSize);
+        }
+    }
 
     let leftBlocked = false;
     let rightBlocked = false;
@@ -104,12 +116,27 @@ function render(){
         }
     }
     
+    // Determine if the player (logo) is moving based on WASD keys
+    const isMoving = input[87] || input[65] || input[83] || input[68];
+    
+    // Update animation frame only when moving, else use standing image
+    if(isMoving){
+        walkFrameCounter++;
+        if(walkFrameCounter >= 10){
+            useWalkingFrame1 = !useWalkingFrame1;
+            walkFrameCounter = 0;
+        }
+        logo.ref = useWalkingFrame1 ? walking1ImgRef : walking2ImgRef;
+    } else {
+        logo.ref = logoImgRef;
+    }
+
     if(input[87] && !upBlocked){ // w
         logo.angle = 0;
         logo.y -= playerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
-        logo.angle = Math.PI/2;
+        logo.angle = 3*Math.PI/2;
         logo.x -= playerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
@@ -117,7 +144,7 @@ function render(){
         logo.y += playerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
-        logo.angle = 3*Math.PI/2;
+        logo.angle = Math.PI/2;
         logo.x += playerSpeed;
     }
     
@@ -152,7 +179,6 @@ function render(){
     
 
     logo.update();
-    dialogBox.update();
     for (const wall of mapWalls) {
         wall.update();
     }
@@ -175,7 +201,14 @@ function render(){
     }
 
     timer++;
+    
+    // New: Apply urban city lighting effect overlay
+    drawUrbanLighting();
+    
+    // Draw the dialog box on top so that it always shows up
+    dialogBox.update();
 }
+
 var updateLoop = window.setInterval(render, renderRate);
 
 function Rect(x, y, w, h, color){
@@ -296,14 +329,16 @@ function DialogBox() {
         }
 
         const boxHeight = 150;
+        const boxX = this.margin;
         const boxY = canvas.height - boxHeight - this.margin;
+        const boxWidth = canvas.width - (this.margin * 2);
         
         // Draw box background and border
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         ctx.strokeStyle = "white";
         ctx.lineWidth = 2;
-        ctx.strokeRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
         
         // Prepare for wrapped text
         ctx.fillStyle = "white";
@@ -409,4 +444,21 @@ function getCollision(rect1, rect2, buffer){
     }
 
     return collisionDetections;
+}
+
+// New function to add super cool urban lighting effect
+function drawUrbanLighting(){
+    ctx.save();
+    // Position gradient at player's center
+    const centerX = logo.x + logo.w / 2;
+    const centerY = logo.y + logo.h / 2;
+    // Create a radial gradient with a hip urban night vibe
+    const gradient = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, 350);
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");         // Clear center
+    gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");       // Dim mid area
+    gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");       // Deep blue, dark outer edge
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
 }
