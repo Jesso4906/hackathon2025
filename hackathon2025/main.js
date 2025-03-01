@@ -17,6 +17,19 @@ const walking2ImgRef = document.getElementById("walking2"); // added walking ima
 const customerImgRef = document.getElementById("coin");
 const lobbyFloor = document.getElementById("floor");
 
+// Add new customer image references
+const customerStandImgRef = document.getElementById("customerStand");
+const customerWalk1ImgRef = document.getElementById("customerWalk1");
+const customerWalk2ImgRef = document.getElementById("customerWalk2");
+const KcustomerStandImgRef = document.getElementById("KcustomerStand");
+const KcustomerWalk1ImgRef = document.getElementById("KcustomerWalk1");
+const KcustomerWalk2ImgRef = document.getElementById("KcustomerWalk2");
+
+// Add new dead customer image reference
+const customerDeadImgRef = document.getElementById("customerDead");
+
+const bloodSplatImgRef = document.getElementById("bloodSplat");
+
 const renderRate = 20;
 
 var input = []; // the index corresponds to the keycode
@@ -104,6 +117,7 @@ let currentOrder;
 const customers = [];
 
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
+var fadeAlpha = 0; // added for kill fade animation
 var customerSpawnTimer = 0;
 
 // Add variables to handle walking animation
@@ -111,6 +125,15 @@ let walkFrameCounter = 0;
 let useWalkingFrame1 = true;
 
 function render(){
+    // --- Begin Screen Shake Effect ---
+    ctx.save();
+    if(input[16] && customers.some(c => c.targeted)){
+        const shakeX = (Math.random() - 0.5) * 10;
+        const shakeY = (Math.random() - 0.5) * 10;
+        ctx.translate(shakeX, shakeY);
+    }
+    // --- End Screen Shake Effect ---
+
     // Tiled background drawing (using tile size equal to player's size, 50x50)
     const tileSize = 50;
     for (let y = 0; y < canvas.height; y += tileSize) {
@@ -155,21 +178,28 @@ function render(){
         logo.ref = logoImgRef;
     }
 
+    // Before movement updates, determine current speed:
+    let currentPlayerSpeed = playerSpeed;
+    if(customers.some(c => c.dragging)){
+        currentPlayerSpeed = playerSpeed / 3;  // move even more slowly while dragging a body
+    }
+
+    // Update movement using currentPlayerSpeed:
     if(input[87] && !upBlocked){ // w
         logo.angle = 0;
-        logo.y -= playerSpeed;
+        logo.y -= currentPlayerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
         logo.angle = 3*Math.PI/2;
-        logo.x -= playerSpeed;
+        logo.x -= currentPlayerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
         logo.angle = Math.PI;
-        logo.y += playerSpeed;
+        logo.y += currentPlayerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
         logo.angle = Math.PI/2;
-        logo.x += playerSpeed;
+        logo.x += currentPlayerSpeed;
     }
     
     // Add space bar check (key code 32)
@@ -179,10 +209,10 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
+
     if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
         const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
-
         customers.push(newCustomer);
         customerSpawnTimer = 0;
         nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
@@ -228,6 +258,7 @@ function render(){
     }
 
     let hungryCustomers=0;
+    // Update order logic to ignore dead customers
     for (const customer of customers) {
         if (customer.chair) {
             const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
@@ -237,7 +268,7 @@ function render(){
                 customer.hasOrdered=true;
             }
         }
-        if (!customer.hasOrdered && !customer.hasEaten) {
+        if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
                 customer.img.vY = 0;
                 readyCustomer = readyCustomer == null ? customer : readyCustomer;
@@ -248,9 +279,106 @@ function render(){
         }
         customer.update();
     }
+
+    // Ensure readyCustomer is always set if available,
+    // and if the current readyCustomer is dead, reassign to the next candidate.
+    if (readyCustomer && readyCustomer.dead) {
+        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+    }
+    if (!readyCustomer) {
+        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+    }
+
+    // Debug: log the current ready customer
+    console.debug("Current readyCustomer:", readyCustomer);
+
     for (const interactable of interactables) {
         interactable.update();
     }
+
+    
+    // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
+    // Modified kill mechanic section to skip dead customers
+    // Modify kill prompt section: only show prompt if no body is being dragged.
+    if(input[16] && !customers.some(c => c.dragging)) { // when Shift is held and not dragging a body
+        let nearestDistance = 60;
+        let nearestCustomer = null;
+        for (const customer of customers) {
+            if(customer.dead) continue; // skip dead customers
+            const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
+            const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if(distance < nearestDistance){
+                nearestDistance = distance;
+                nearestCustomer = customer;
+            }
+        }
+        // Reset targeting for all customers
+        customers.forEach(customer => customer.targeted = false);
+        // If a valid customer is found, outline it
+        if(nearestCustomer){
+            nearestCustomer.targeted = true;
+            ctx.save();
+            ctx.font = "30px serif";
+            ctx.fillStyle = "red";
+            ctx.fillText("KILL?", nearestCustomer.img.x, nearestCustomer.img.y - 10);
+            ctx.restore();
+        }
+    } else {
+        // Reset targeting if Shift is not held or if dragging a body
+        customers.forEach(customer => customer.targeted = false);
+    }
+    // Modify F key handler:
+    if(input[70]){
+        // Check if already dragging a body:
+        let dragged = customers.find(c => c.dragging);
+        if(dragged){
+            // Drop the body
+            dragged.dragging = false;
+            console.debug("Dropped dead body");
+        } else {
+            let executed = false;
+            // First, try to kill a living customer as before
+            for (let i = 0; i < customers.length; i++){
+                if(customers[i].targeted && !customers[i].dead){
+                    customers[i].dead = true;
+                    customers[i].img.vY = 0;  // freeze movement
+                    executed = true;
+                    break;
+                }
+            }
+            // If no kill was executed, check for a nearby dead customer to start dragging
+            if(!executed){
+                 for (let i = 0; i < customers.length; i++){
+                     if(customers[i].dead && !customers[i].dragging){
+                         let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
+                         let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                         let distance = Math.sqrt(dx*dx+dy*dy);
+                         if(distance < 60){ // threshold for dragging
+                             customers[i].dragging = true;
+                             // Save the offset from player's position to the dead body position
+                             customers[i].dragOffsetX = customers[i].img.x - logo.x;
+                             customers[i].dragOffsetY = customers[i].img.y - logo.y;
+                             console.debug("Started dragging dead body, offset:", customers[i].dragOffsetX, customers[i].dragOffsetY);
+                             executed = true;
+                             break;
+                         }
+                     }
+                 }
+            }
+        }
+        input[70] = false;
+    }
+    
+    // Update fadeAlpha for slower fade in when kill is in range
+    if (customers.some(c => c.targeted)) {
+        fadeAlpha = Math.min(fadeAlpha + 0.15, 1); // slower fade in increment
+    } else {
+        fadeAlpha = 0;
+    }
+    
+    timer++;
+
     for (const table of tables) {
         for (const chair of table.chairs) {
             chair.update();
@@ -259,12 +387,78 @@ function render(){
     }
 
     customerSpawnTimer++;
+
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
     
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
+    
+    // Restore global transformation from shake
+    ctx.restore();
+    
+    // Draw cones for each alive customer and check for dead bodies in their range
+    customers.forEach(customer => {
+        if (!customer.dead) { // alive only
+            let cx = customer.img.x + customer.img.w / 2;
+            let cy = customer.img.y + customer.img.h / 2;
+            let coneDir = Math.PI / 2;  // downward beam
+            let halfAngle = Math.PI / 6;
+            let coneRange = 150;
+            let innerRadius = 20;
+            // Show the flashlight beam only for the first customer in the order line (readyCustomer)
+            // when the player is holding a dead body OR has already ordered.
+            if (customer === readyCustomer && (customers.some(c => c.dragging) || customer.hasOrdered)) {
+                ctx.save();
+                let playerCenterX = logo.x + logo.w / 2;
+                let playerCenterY = logo.y + logo.h / 2;
+                let lightRadius = 350;
+                ctx.beginPath();
+                ctx.arc(playerCenterX, playerCenterY, lightRadius, 0, 2 * Math.PI);
+                ctx.clip();
+                
+                ctx.beginPath();
+                ctx.moveTo(cx, cy + innerRadius);
+                let leftX = cx + coneRange * Math.cos(coneDir - halfAngle);
+                let leftY = cy + coneRange * Math.sin(coneDir - halfAngle);
+                let rightX = cx + coneRange * Math.cos(coneDir + halfAngle);
+                let rightY = cy + coneRange * Math.sin(coneDir + halfAngle);
+                
+                let leftCtrlX = cx + (leftX - cx) * 0.5;
+                let leftCtrlY = cy + innerRadius; 
+                ctx.bezierCurveTo(leftCtrlX, leftCtrlY, leftCtrlX, leftY, leftX, leftY);
+                ctx.quadraticCurveTo(cx, cy + coneRange + 20, rightX, rightY);
+                let rightCtrlX = cx + (rightX - cx) * 0.5;
+                ctx.bezierCurveTo(rightCtrlX, rightY, rightCtrlX, cy + innerRadius, cx, cy + innerRadius);
+                ctx.closePath();
+                
+                let beamGradient = ctx.createLinearGradient(cx, cy, cx, cy + coneRange);
+                beamGradient.addColorStop(0, "rgba(255,255,255,0.2)");
+                beamGradient.addColorStop(1, "rgba(255,255,255,0)");
+                ctx.fillStyle = beamGradient;
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            // Always perform dead body detection:
+            customers.forEach(other => {
+                if(other.dead) {
+                    let ocx = other.img.x + other.img.w / 2;
+                    let ocy = other.img.y + other.img.h / 2;
+                    let dx = ocx - cx;
+                    let dy = ocy - cy;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if(dist <= coneRange) {
+                        let angleToDead = Math.atan2(dy, dx);
+                        if(Math.abs(angleDifference(coneDir, angleToDead)) <= halfAngle) {
+                            console.debug("Dead body detected near alive customer at", cx, cy);
+                        }
+                    }
+                }
+            });
+        }
+    });
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -396,17 +590,77 @@ const menu = [
 
 ]
 
-function Customer(ref, x, y, w, h){
-    this.img = new Image(ref, x, y, w, h, 0);
+// Update Customer constructor to implement walking animation, kill images, and dead state
+function Customer(x, y, w, h){
+    this.images = {
+        stand: customerStandImgRef,
+        walk1: customerWalk1ImgRef,
+        walk2: customerWalk2ImgRef,
+        killStand: KcustomerStandImgRef,
+        killWalk1: KcustomerWalk1ImgRef,
+        killWalk2: KcustomerWalk2ImgRef
+    };
+    this.img = new Image(this.images.stand, x, y, w, h, Math.PI);
     this.hasOrdered = false;
     this.hasEaten = false;
     this.order = [];
     for (let i = 0; i <= Math.floor(Math.random() * 5); i++ ){
         this.order.push(menu[Math.floor(Math.random() * menu.length)]);
     }
+
+    this.walkFrameCounter = 0;
+    this.useWalkingFrame1 = true;
+    this.dead = false;
+    this.dragging = false; // new dragging flag
+    this.dragOffsetX = 0;  // new offset property
+    this.dragOffsetY = 0;  // new offset property
+    
+
     this.chair = null;
 
     this.update = function update(){
+        if(this.dead){
+            if(this.dragging){
+                // Use dragging logic for the dead body (body moves, but blood splat stays fixed)
+                this.img.x = logo.x + this.dragOffsetX;
+                this.img.y = logo.y + this.dragOffsetY;
+            }
+            // Initialize blood properties on first death
+            if(this.bloodAlpha === undefined) {
+                this.bloodAlpha = 1;
+            }
+            if(this.bloodX === undefined) {
+                this.bloodX = this.img.x;
+                this.bloodY = this.img.y;
+                this.bloodW = this.img.w;
+                this.bloodH = this.img.h;
+            }
+            // Draw the blood splat first (it stays on the floor)
+            ctx.save();
+            ctx.globalAlpha = this.bloodAlpha;
+            ctx.drawImage(bloodSplatImgRef, this.bloodX, this.bloodY, this.bloodW, this.bloodH);
+            ctx.restore();
+            // Then draw the dead body on top
+            this.img.ref = customerDeadImgRef;
+            this.img.vX = 0;
+            this.img.vY = 0;
+            this.img.update();
+            // Fade away over 600 frames (~30 sec at 20 fps)
+            this.bloodAlpha = Math.max(this.bloodAlpha - (1/600), 0);
+            return;
+        }
+        if(this.img.vY !== 0){ // moving => animate walking
+            this.walkFrameCounter++;
+            if(this.walkFrameCounter >= 10){
+                this.useWalkingFrame1 = !this.useWalkingFrame1;
+                this.walkFrameCounter = 0;
+            }
+            this.img.ref = this.targeted
+                ? (this.useWalkingFrame1 ? this.images.killWalk1 : this.images.killWalk2)
+                : (this.useWalkingFrame1 ? this.images.walk1 : this.images.walk2);
+        } else { // standing
+            this.img.ref = this.targeted ? this.images.killStand : this.images.stand;
+        }
         this.img.update();
     }
 }
@@ -612,31 +866,40 @@ function getCollision(rect1, rect2, buffer){
     return collisionDetections;
 }
 
-// New function to add super cool urban lighting effect
+// Modified drawUrbanLighting function for quick fade in animation
 function drawUrbanLighting(){
     ctx.save();
-    // Position gradient at player's center
-    const centerX = logo.x + logo.w / 2;
-    const centerY = logo.y + logo.h / 2;
-    // Create a radial gradient with a hip urban night vibe
-    const gradient = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, 350);
-    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");         // Clear center
-    gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");       // Dim mid area
-    gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");       // Deep blue, dark outer edge
-    
-    ctx.fillStyle = gradient;
+    let playerCenterX = logo.x + logo.w/2;
+    let playerCenterY = logo.y + logo.h/2;
+    let playerGradient = ctx.createRadialGradient(playerCenterX, playerCenterY, 30, playerCenterX, playerCenterY, 350);
+    playerGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    playerGradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");
+    playerGradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");
+    ctx.fillStyle = playerGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    if(customers.find(c => c.targeted)){
+        const targetedCustomer = customers.find(c => c.targeted);
+        let customerCenterX = targetedCustomer.img.x + targetedCustomer.img.w/2;
+        let customerCenterY = targetedCustomer.img.y + targetedCustomer.img.h/2;
+        ctx.globalAlpha = fadeAlpha;
+        let customerGradient = ctx.createRadialGradient(customerCenterX, customerCenterY, 10, customerCenterX, customerCenterY, 120);
+        customerGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        customerGradient.addColorStop(0.7, "rgba(0, 0, 0, 0.8)");
+        customerGradient.addColorStop(1, "rgba(0, 0, 30, 0.95)");
+        ctx.fillStyle = customerGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+    }
     ctx.restore();
 }
 
-// HERE IS AN EXAMPLE OF ADDING A CHOICE DIALONG Test: Show a choice dialog at the start
-window.addEventListener("load", function() {
-    dialogBox.showChoiceDialog(
-        "Start the game?",
-        ["Yes", "No", "Maybe"],
-        function(choice) {
-            console.log("User selected:", choice);
-            // Add the event you want to do with the choice
-        }
-    );
-});
+
+// New helper function to calculate minimal angle difference
+function angleDifference(a, b) {
+    let diff = a - b;
+    while(diff < -Math.PI) diff += 2*Math.PI;
+    while(diff > Math.PI) diff -= 2*Math.PI;
+    return diff;
+}
+
