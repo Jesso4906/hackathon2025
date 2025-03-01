@@ -86,6 +86,13 @@ function render(){
         logo.angle = 3*Math.PI/2;
         logo.x += playerSpeed;
     }
+    
+    // Add space bar check (key code 32)
+    if(input[32] && dialogBox.isActive){
+        //logo.x++;
+        dialogBox.advance();
+        input[32] = false; // Reset to prevent multiple advances
+    }
 
     if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
         const newCustomer = new Customer(customerImgRef, 200, 500, 50, 50);
@@ -96,6 +103,7 @@ function render(){
     }
 
     logo.update();
+    dialogBox.update();
     for (const wall of mapWalls) {
         wall.update();
     }
@@ -165,6 +173,103 @@ function Customer(ref, x, y, w, h){
         this.img.update();
     }
 }
+
+function DialogBox() {
+    this.isActive = false;
+    this.text = "";
+    this.fullText = "";
+    this.charIndex = 0;
+    this.queue = [];
+    this.typeSpeed = 2; // characters per frame
+    this.margin = 20;
+    
+    this.showDialog = function(text) {
+        if (this.isActive) {
+            this.queue.push(text);
+            return;
+        }
+        this.isActive = true;
+        this.fullText = text;
+        this.text = "";
+        this.charIndex = 0;
+    }
+
+    this.update = function() {
+        if (!this.isActive) return;
+
+        // Type text effect
+        if (this.charIndex < this.fullText.length) {
+            this.charIndex += this.typeSpeed;
+            this.text = this.fullText.substring(0, this.charIndex);
+        }
+
+        const boxHeight = 150;
+        const boxY = canvas.height - boxHeight - this.margin;
+        
+        // Draw box background and border
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        
+        // Prepare for wrapped text
+        ctx.fillStyle = "white";
+        ctx.font = "24px monospace";
+        const maxWidth = canvas.width - (this.margin * 2) - 20; // inner text margin
+        let words = this.text.split(" ");
+        let line = "";
+        let lines = [];
+        for (let i = 0; i < words.length; i++) {
+            let testLine = line + words[i] + " ";
+            if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+                lines.push(line);
+                line = words[i] + " ";
+            } else {
+                line = testLine;
+            }
+        }
+        lines.push(line);
+        
+        // Draw each line
+        let lineY = boxY + 40;
+        const lineHeight = 30;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], this.margin + 20, lineY);
+            lineY += lineHeight;
+        }
+
+        // Show continue indicator when text is complete
+        if (this.charIndex >= this.fullText.length) {
+            ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
+        }
+    }
+
+    this.advance = function() {
+        //console.log("dialogBox.advance() called"); // debug log
+        if (this.charIndex < this.fullText.length) {
+            // If still typing, complete the current text
+            this.charIndex = this.fullText.length;
+            this.text = this.fullText;
+        } else if (this.queue.length > 0) {
+            // Instead of calling showDialog, directly replace with next dialog
+            this.fullText = this.queue.shift();
+            this.text = "";
+            this.charIndex = 0;
+        } else {
+            // Close dialog
+            this.isActive = false;
+        }
+    }
+}
+
+const dialogBox = new DialogBox();
+
+// Update test dialog messages with instructions
+dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
+dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
+
+// Remove the separate space bar event listener since we're using the input array now
 
 function getCollision(rect1, rect2, buffer){ 
     //                          UP      DOWN  LEFT  RIGHT
