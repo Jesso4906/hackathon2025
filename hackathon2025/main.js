@@ -1,15 +1,12 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// Update canvas dimensions to viewport dimensions
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+window.resizeTo(1000, 750);
+canvas.width = 1000;
+canvas.height = 750;
 
-// Add listener to update canvas size on window resize
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
+
+
 
 const logoImgRef = document.getElementById("logo");
 const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
@@ -48,10 +45,19 @@ document.addEventListener('mousemove', (event) =>
 const logo = new Image(logoImgRef,50,50,50,50,0)
 
 const mapWalls = [
+    // Exterior walls
     new Rect(0,0,canvas.width,10,"red"),
     new Rect(0,0,10,canvas.height,"red"),
     new Rect(0,canvas.height-10,canvas.width,10,"red"),
-    new Rect(canvas.width-10,0,10,canvas.height,"red")
+    new Rect(canvas.width-10,0,10,canvas.height,"red"),
+    // Barrier Walls
+    // bathroom wall
+    new Image(document.getElementById("wall"), 200, 450, 550, 50, 0),
+    // Counter
+    new Image(document.getElementById("counter"), 200, 100, 50, 150 , 0),
+    // kitchen-lobby wall
+    new Image(document.getElementById("wall"), 200, 250, 50, 1000, 0),
+    
 ];
 
 const tables = [
@@ -60,7 +66,19 @@ const tables = [
 
 const interactables = [];
 let readyCustomer;
-const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+const customerSpeed = 1;
+
+const foodToBeDispensed = [];
+const drinksToBeDispensed = [];
+const iceCreamToBeDispensed = [];
+
+const inventory = [];
+
+let hasTray = false;
+let finishedOrder = false;
+const registerImgRef = document.getElementById("register");
+
+const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
         return;
@@ -69,6 +87,15 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
         dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
         for (let i = 0; i < readyCustomer.order.length; i++) { 
+            if(menu.findIndex(item => item === readyCustomer.order[i]) < 8){
+                foodToBeDispensed.push(readyCustomer.order[i]);
+            }
+            else if(menu.findIndex(item => item === readyCustomer.order[i]) < 11){
+                drinksToBeDispensed.push(readyCustomer.order[i]);
+            }
+            else {
+                iceCreamToBeDispensed.push(readyCustomer.order[i]);
+            }
             orderString += readyCustomer.order[i];
             if (i < readyCustomer.order.length - 1) {
                 orderString += ", ";
@@ -97,10 +124,70 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
 });
 interactables.push(register);
 
+const foodDispenser = new Interactable(logoImgRef, 0, 150, 50, 50, Math.PI / 2, function(){
+    if(foodToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Food",
+            foodToBeDispensed,
+            function(choice) {
+                foodToBeDispensed.splice(foodToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(foodDispenser);
+
+const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
+    if(drinksToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Drink",
+            drinksToBeDispensed,
+            function(choice) {
+                drinksToBeDispensed.splice(drinksToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(drinkDispenser);
+
+const iceCreamDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
+    if(iceCreamToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Ice Cream",
+            iceCreamToBeDispensed,
+            function(choice) {
+                iceCreamToBeDispensed.splice(iceCreamToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(iceCreamDispenser);
+
+const trays = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+    if(finishedOrder){
+        hasTray = true;
+    }
+});
+interactables.push(trays);
+
 const collisionBuffer = 5;
 
 const playerSpeed = 5;
-const customerSpeed = 1;
 const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
 
@@ -109,7 +196,6 @@ const timeScale = 4;
 let money = 0;
 let time = 9*60; // start at 9:00 AM
 
-const inventory = [];
 let currentOrder;
 
 const customers = [];
@@ -223,17 +309,19 @@ function render(){
         nearestInteractable = null;
         for (const interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
-            if (distance < 50) {
+            console.log(distance);
+            if (distance < 75) {
+                console.log(interactable);
                 interactable.interact();
                 break;
             }
         }
     }
-
     if(time < 17*60){
         time += (renderRate / 1000) * timeScale;
         money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
     }
+
     ctx.font = "50px Arial";
     ctx.fillStyle = "red";
     let ampm = "AM";
@@ -249,7 +337,6 @@ function render(){
 
     ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
     ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
-    
 
     logo.update();
     for (const wall of mapWalls) {
@@ -386,6 +473,36 @@ function render(){
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
+
+    ctx.font = "50px Arial";
+    ctx.fillStyle = "red";
+    let ampm = "AM";
+    let hour = Math.floor(time / 60);
+    if(hour >= 12){
+        ampm = "PM";
+        hour -= 12;
+        if(hour == 0){
+            hour = 12;
+        }
+    }
+    let minute = Math.floor(time % 60);
+
+    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
+    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
+    if(currentOrder){
+        ctx.fillText("Order: ", 10, 400);
+        for (let i = 0; i < currentOrder.length; i++) {
+            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
+                ctx.fillStyle = "green";
+            }
+            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
+            ctx.fillStyle = "red";
+        }
+    }
+
+    if(hasTray){
+        ctx.fillText("Tray", 250, 400);
+    }
     
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
