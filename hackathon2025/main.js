@@ -73,14 +73,18 @@ const customerSpeed = 1;
 const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
 
+const hourlyWage = 10;
+const timeScale = 2;
+let money = 0;
+let time = 9*60; // start at 9:00 AM
+
 const inventory = [];
 let currentOrder;
 
 const customers = [];
 
-
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
-var timer = 0;
+var customerSpawnTimer = 0;
 
 // Add variables to handle walking animation
 let walkFrameCounter = 0;
@@ -155,12 +159,12 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
-    if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
+    if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
         const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
 
         customers.push(newCustomer);
-        timer = 0;
+        customerSpawnTimer = 0;
         nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
     }
 
@@ -177,6 +181,19 @@ function render(){
         }
     }
     
+    time += (renderRate / 1000) * timeScale;
+    money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    ctx.font = "50px Arial";
+    let ampm = "AM";
+    let hour = Math.floor(time / 60);
+    if(hour >= 12){
+        ampm = "PM";
+        hour -= 12;
+    }
+    let minute = Math.floor(time % 60);
+
+    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
+    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
 
     logo.update();
     for (const wall of mapWalls) {
