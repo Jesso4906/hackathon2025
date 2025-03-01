@@ -477,7 +477,7 @@ function getCollision(rect1, rect2, buffer){
     return collisionDetections;
 }
 
-// Modified function to use customer-based lighting when kill target exists
+// Modified function to adjust the customer light size and gradient
 function drawUrbanLighting(){
     ctx.save();
     let lightCenterX, lightCenterY, innerRadius, outerRadius, gradient;
@@ -485,8 +485,8 @@ function drawUrbanLighting(){
     if(targetedCustomer){
         lightCenterX = targetedCustomer.img.x + targetedCustomer.img.w / 2;
         lightCenterY = targetedCustomer.img.y + targetedCustomer.img.h / 2;
-        innerRadius = 15;
-        outerRadius = 100;
+        innerRadius = 10;    // smaller central light
+        outerRadius = 120;   // extended gradient out a bit
         gradient = ctx.createRadialGradient(lightCenterX, lightCenterY, innerRadius, lightCenterX, lightCenterY, outerRadius);
         gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
         gradient.addColorStop(0.7, "rgba(0, 0, 0, 0.8)");
