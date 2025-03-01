@@ -152,21 +152,28 @@ function render(){
         logo.ref = logoImgRef;
     }
 
+    // Before movement updates, determine current speed:
+    let currentPlayerSpeed = playerSpeed;
+    if(customers.some(c => c.dragging)){
+        currentPlayerSpeed = playerSpeed / 3;  // move even more slowly while dragging a body
+    }
+
+    // Update movement using currentPlayerSpeed:
     if(input[87] && !upBlocked){ // w
         logo.angle = 0;
-        logo.y -= playerSpeed;
+        logo.y -= currentPlayerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
         logo.angle = 3*Math.PI/2;
-        logo.x -= playerSpeed;
+        logo.x -= currentPlayerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
         logo.angle = Math.PI;
-        logo.y += playerSpeed;
+        logo.y += currentPlayerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
         logo.angle = Math.PI/2;
-        logo.x += playerSpeed;
+        logo.x += currentPlayerSpeed;
     }
     
     // Add space bar check (key code 32)
@@ -225,7 +232,8 @@ function render(){
     
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
     // Modified kill mechanic section to skip dead customers
-    if(input[16]) { // when Shift is held
+    // Modify kill prompt section: only show prompt if no body is being dragged.
+    if(input[16] && !customers.some(c => c.dragging)) { // when Shift is held and not dragging a body
         let nearestDistance = 60;
         let nearestCustomer = null;
         for (const customer of customers) {
@@ -250,15 +258,46 @@ function render(){
             ctx.restore();
         }
     } else {
-        // Reset targeting if Shift is not held
+        // Reset targeting if Shift is not held or if dragging a body
         customers.forEach(customer => customer.targeted = false);
     }
+    // Modify F key handler:
     if(input[70]){
-        for (let i = 0; i < customers.length; i++){
-            if(customers[i].targeted && !customers[i].dead){
-                customers[i].dead = true;
-                customers[i].img.vY = 0;  // freeze movement
-                break;
+        // Check if already dragging a body:
+        let dragged = customers.find(c => c.dragging);
+        if(dragged){
+            // Drop the body
+            dragged.dragging = false;
+            console.debug("Dropped dead body");
+        } else {
+            let executed = false;
+            // First, try to kill a living customer as before
+            for (let i = 0; i < customers.length; i++){
+                if(customers[i].targeted && !customers[i].dead){
+                    customers[i].dead = true;
+                    customers[i].img.vY = 0;  // freeze movement
+                    executed = true;
+                    break;
+                }
+            }
+            // If no kill was executed, check for a nearby dead customer to start dragging
+            if(!executed){
+                 for (let i = 0; i < customers.length; i++){
+                     if(customers[i].dead && !customers[i].dragging){
+                         let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
+                         let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                         let distance = Math.sqrt(dx*dx+dy*dy);
+                         if(distance < 60){ // threshold for dragging
+                             customers[i].dragging = true;
+                             // Save the offset from player's position to the dead body position
+                             customers[i].dragOffsetX = customers[i].img.x - logo.x;
+                             customers[i].dragOffsetY = customers[i].img.y - logo.y;
+                             console.debug("Started dragging dead body, offset:", customers[i].dragOffsetX, customers[i].dragOffsetY);
+                             executed = true;
+                             break;
+                         }
+                     }
+                 }
             }
         }
         input[70] = false;
@@ -281,6 +320,49 @@ function render(){
     
     // Restore global transformation from shake
     ctx.restore();
+    
+    // Draw cones for each alive customer and check for dead bodies in their range
+    customers.forEach(customer => {
+        if(!customer.dead) { // alive only
+            let cx = customer.img.x + customer.img.w / 2;
+            let cy = customer.img.y + customer.img.h / 2;
+            // Change cone parameters: now using π/2 for downward direction
+            let coneDir = Math.PI / 2; 
+            let halfAngle = Math.PI / 6;
+            let coneRange = 150;
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            let leftX = cx + coneRange * Math.cos(coneDir - halfAngle);
+            let leftY = cy + coneRange * Math.sin(coneDir - halfAngle);
+            let rightX = cx + coneRange * Math.cos(coneDir + halfAngle);
+            let rightY = cy + coneRange * Math.sin(coneDir + halfAngle);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+            ctx.strokeStyle = "yellow";
+            ctx.stroke();
+            
+            // Check dead customers inside cone
+            customers.forEach(other => {
+                if(other.dead) {
+                    let ocx = other.img.x + other.img.w / 2;
+                    let ocy = other.img.y + other.img.h / 2;
+                    let dx = ocx - cx;
+                    let dy = ocy - cy;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if(dist <= coneRange) {
+                        let angleToDead = Math.atan2(dy, dx);
+                        if(Math.abs(angleDifference(coneDir, angleToDead)) <= halfAngle) {
+                            console.debug("Dead body detected near alive customer at", cx, cy);
+                        }
+                    }
+                }
+            });
+            ctx.restore();
+        }
+    });
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -377,12 +459,18 @@ function Customer(x, y, w, h){
     }
     this.walkFrameCounter = 0;
     this.useWalkingFrame1 = true;
-    // New: dead flag
     this.dead = false;
+    this.dragging = false; // new dragging flag
+    this.dragOffsetX = 0;  // new offset property
+    this.dragOffsetY = 0;  // new offset property
     
     this.update = function update(){
-        // If dead, use dead sprite and exit without animating
         if(this.dead){
+            if(this.dragging){
+                // Instead of teleporting behind the player, follow using the saved offset.
+                this.img.x = logo.x + this.dragOffsetX;
+                this.img.y = logo.y + this.dragOffsetY;
+            }
             this.img.ref = customerDeadImgRef;
             this.img.vX = 0;
             this.img.vY = 0;
@@ -578,4 +666,12 @@ function drawUrbanLighting(){
         ctx.globalAlpha = 1;
     }
     ctx.restore();
+}
+
+// New helper function to calculate minimal angle difference
+function angleDifference(a, b) {
+    let diff = a - b;
+    while(diff < -Math.PI) diff += 2*Math.PI;
+    while(diff > Math.PI) diff -= 2*Math.PI;
+    return diff;
 }
