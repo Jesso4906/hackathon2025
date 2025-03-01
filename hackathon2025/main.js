@@ -1,12 +1,8 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-window.resizeTo(1000, 750);
-canvas.width = 1000;
-canvas.height = 750;
-
-
-
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
 const logoImgRef = document.getElementById("logo");
 const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
@@ -119,6 +115,7 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
                 }
             }
         }
+        currentCustomer = readyCustomer;
         readyCustomer = null;
     }
 });
@@ -142,7 +139,7 @@ const foodDispenser = new Interactable(logoImgRef, 0, 150, 50, 50, Math.PI / 2, 
 });
 interactables.push(foodDispenser);
 
-const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
+const drinkDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
     if(drinksToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Drink",
@@ -160,7 +157,7 @@ const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2,
 });
 interactables.push(drinkDispenser);
 
-const iceCreamDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
+const iceCreamDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
     if(iceCreamToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Ice Cream",
@@ -197,13 +194,15 @@ let money = 0;
 let time = 9*60; // start at 9:00 AM
 
 let currentOrder;
+let currentCustomer;
 
 const customers = [];
 
-
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
-var timer = 0;
+var customerSpawnTimer = 0;
 var fadeAlpha = 0; // added for kill fade animation
+
+var orderTimer = 0;
 
 // Add variables to handle walking animation
 let walkFrameCounter = 0;
@@ -294,12 +293,12 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
-    if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
+    if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
         // Instantiate Customer with new parameters and set vertical velocity
         const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
-        timer = 0;
+        customerSpawnTimer = 0;
         nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
     }
 
@@ -309,11 +308,22 @@ function render(){
         nearestInteractable = null;
         for (const interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
-            console.log(distance);
             if (distance < 75) {
                 console.log(interactable);
                 interactable.interact();
                 break;
+            }
+        }
+
+        if(currentCustomer && hasTray){
+            const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
+            if (distance < 75) {
+                dialogBox.showDialog("Yum Yum");
+                currentCustomer.hasEaten = true;
+                currentCustomer.img.vY = -customerSpeed;
+                currentOrder = null;
+                hasTray = false;
+                finishedOrder = false;
             }
         }
     }
@@ -359,9 +369,6 @@ function render(){
     if (!readyCustomer) {
         readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
     }
-
-    // Debug: log the current ready customer
-    console.debug("Current readyCustomer:", readyCustomer);
 
     for (const interactable of interactables) {
         interactable.update();
@@ -453,7 +460,7 @@ function render(){
         fadeAlpha = 0;
     }
     
-    timer++;
+    customerSpawnTimer++;
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
@@ -683,11 +690,7 @@ const menu = [
     "Nuggets",
     "Soda",
     "Diet Soda",
-    "Milkshake",
-    "Vanilla Ice cream",
-    "Chocolate Ice cream",
-    "Strawberry Ice cream",
-
+    "Milkshake"
 ]
 
 // Update Customer constructor to implement walking animation, kill images, and dead state
