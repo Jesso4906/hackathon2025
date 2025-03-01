@@ -74,7 +74,7 @@ const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
 
 const hourlyWage = 10;
-const timeScale = 2;
+const timeScale = 4;
 let money = 0;
 let time = 9*60; // start at 9:00 AM
 
@@ -181,14 +181,20 @@ function render(){
         }
     }
     
-    time += (renderRate / 1000) * timeScale;
-    money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    if(time < 17*60){
+        time += (renderRate / 1000) * timeScale;
+        money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    }
+    
     ctx.font = "50px Arial";
     let ampm = "AM";
     let hour = Math.floor(time / 60);
     if(hour >= 12){
         ampm = "PM";
         hour -= 12;
+        if(hour == 0){
+            hour = 12;
+        }
     }
     let minute = Math.floor(time % 60);
 
