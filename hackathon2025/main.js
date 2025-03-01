@@ -308,6 +308,23 @@ function DialogBox() {
     this.typeSpeed = 2; // characters per frame
     this.margin = 20;
     
+    this.isChoice = false;
+    this.options = [];
+    this.selectedOption = 0;
+    this.choiceCallback = null;
+    
+    // New: Show a choice dialog with prompt text, array of options, and a callback
+    this.showChoiceDialog = function(promptText, options, callback) {
+        this.isActive = true;
+        this.isChoice = true;
+        this.fullText = promptText;
+        this.text = "";
+        this.charIndex = 0;
+        this.options = options;
+        this.selectedOption = 0;
+        this.choiceCallback = callback;
+    }
+    
     this.showDialog = function(text) {
         if (this.isActive) {
             this.queue.push(text);
@@ -370,10 +387,47 @@ function DialogBox() {
         if (this.charIndex >= this.fullText.length) {
             ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
         }
+
+        // If it's a choice dialog, draw the options and handle arrow key input
+        if (this.isChoice) {
+            // Handle up/down arrow key input to update selectedOption
+            if (input[38]) { // up arrow
+                if (this.selectedOption > 0) { this.selectedOption--; }
+                input[38] = false;
+            }
+            if (input[40]) { // down arrow
+                if (this.selectedOption < this.options.length - 1) { this.selectedOption++; }
+                input[40] = false;
+            }
+            
+            // Render each option
+            for (let i = 0; i < this.options.length; i++) {
+                if (i === this.selectedOption) {
+                    ctx.fillStyle = "yellow";
+                } else {
+                    ctx.fillStyle = "white";
+                }
+                ctx.fillText(this.options[i], this.margin + 20, lineY + i * lineHeight);
+            }
+        } else {
+            // Show continue indicator when text is complete
+            if (this.charIndex >= this.fullText.length) {
+                ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
+            }
+        }
     }
 
     this.advance = function() {
         //console.log("dialogBox.advance() called"); // debug log
+        if (this.isChoice) {
+            // When in choice mode, space selects the currently highlighted option
+            if (this.choiceCallback) { 
+                this.choiceCallback(this.options[this.selectedOption]);
+            }
+            this.isActive = false;
+            this.isChoice = false;
+            return;
+        }
         if (this.charIndex < this.fullText.length) {
             // If still typing, complete the current text
             this.charIndex = this.fullText.length;
@@ -393,8 +447,8 @@ function DialogBox() {
 const dialogBox = new DialogBox();
 
 // Update test dialog messages with instructions
-dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
-dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
+//dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
+//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
 
@@ -462,3 +516,15 @@ function drawUrbanLighting(){
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 }
+
+// HERE IS AN EXAMPLE OF ADDING A CHOICE DIALONG Test: Show a choice dialog at the start
+window.addEventListener("load", function() {
+    dialogBox.showChoiceDialog(
+        "Start the game?",
+        ["Yes", "No", "Maybe"],
+        function(choice) {
+            console.log("User selected:", choice);
+            // Add the event you want to do with the choice
+        }
+    );
+});
