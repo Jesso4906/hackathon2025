@@ -29,7 +29,7 @@ document.addEventListener('mousemove', (event) =>
 });
 
 //const rect = new Rect(0,0,100,100,"yellow");
-const logo = new Image(logoImgRef,50,50,100,100,0)
+const logo = new Image(logoImgRef,50,50,50,50,0)
 
 const mapWalls = [
     new Rect(0,0,canvas.width,10,"red"),
