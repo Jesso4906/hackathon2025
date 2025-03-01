@@ -88,6 +88,15 @@ let walkFrameCounter = 0;
 let useWalkingFrame1 = true;
 
 function render(){
+    // --- Begin Screen Shake Effect ---
+    ctx.save();
+    if(input[16] && customers.some(c => c.targeted)){
+        const shakeX = (Math.random() - 0.5) * 10;
+        const shakeY = (Math.random() - 0.5) * 10;
+        ctx.translate(shakeX, shakeY);
+    }
+    // --- End Screen Shake Effect ---
+
     // Tiled background drawing (using tile size equal to player's size, 50x50)
     const tileSize = 50;
     for (let y = 0; y < canvas.height; y += tileSize) {
@@ -207,12 +216,11 @@ function render(){
         const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
         const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
         const distance = Math.sqrt(dx * dx + dy * dy);
-        if(distance < 60){ // threshold for being "near"
+        if(input[16] && distance < 60){ // Only show kill radius when Shift is held
             ctx.save();
             ctx.strokeStyle = "red";
             ctx.lineWidth = 3;
             ctx.strokeRect(customer.img.x, customer.img.y, customer.img.w, customer.img.h);
-            // NEW: Draw creepy red "KILL?" text above the customer
             ctx.font = "30px serif";
             ctx.fillStyle = "red";
             ctx.fillText("KILL?", customer.img.x, customer.img.y - 10);
@@ -232,9 +240,9 @@ function render(){
         input[70] = false;
     }
     
-    // Update fadeAlpha for quick fade in when kill is in range
+    // Update fadeAlpha for slower fade in when kill is in range
     if (customers.some(c => c.targeted)) {
-        fadeAlpha = Math.min(fadeAlpha + 0.15, 1); // quick fade in
+        fadeAlpha = Math.min(fadeAlpha + 0.15, 1); // slower fade in increment
     } else {
         fadeAlpha = 0;
     }
@@ -246,6 +254,9 @@ function render(){
     
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
+    
+    // Restore global transformation from shake
+    ctx.restore();
 }
 
 var updateLoop = window.setInterval(render, renderRate);
