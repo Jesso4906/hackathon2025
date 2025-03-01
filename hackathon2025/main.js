@@ -81,7 +81,6 @@ function getCollision(rect1, rect2){
 
 
 function render(){
-    ctx.clearRect(0, 0, canvas.width, canvas.height); //clear
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
