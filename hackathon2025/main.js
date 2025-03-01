@@ -41,8 +41,14 @@ const mapWalls = [
     new Rect(canvas.width-10,0,10,canvas.height,"red")
 ];
 
+const tables = [
+    new Table("double", 300, 100),
+];
+
 const interactables = [];
 let readyCustomer;
+const customerSpeed = 1;
+
 const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
@@ -59,9 +65,24 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
         }
         orderString += ".";
         dialogBox.showDialog(orderString);
-        readyCustomer.hasOrdered = true;
         currentOrder = readyCustomer.order;
+        readyCustomer.hasOrdered = true;
+        
+        for (const table of tables) {
+            for (const chair of table.chairs) {
+                if (!chair.customer) {
+                    const distanceToChair = Math.sqrt((readyCustomer.img.x - chair.img.x)**2 + (readyCustomer.img.y - chair.img.y)**2);
+                    chair.customer = readyCustomer;
+                    readyCustomer.chair = chair;
+                    readyCustomer.img.vY = ((chair.img.y - readyCustomer.img.y) / distanceToChair) * customerSpeed;
+                    readyCustomer.img.vX = ((chair.img.x - readyCustomer.img.x) / distanceToChair) * customerSpeed;
+                    
+                    break;
+                }
+            }
+        }
         readyCustomer = null;
+        
     }
 });
 interactables.push(register);
@@ -69,7 +90,6 @@ interactables.push(register);
 const collisionBuffer = 5;
 
 const playerSpeed = 5;
-const customerSpeed = 1;
 const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
 
@@ -168,7 +188,7 @@ function render(){
     if (input[69] ) {
         input[69] = false;
         nearestInteractable = null;
-        for (interactable of interactables) {
+        for (const interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
             if (distance < 50) {
                 interactable.interact();
@@ -185,6 +205,14 @@ function render(){
 
     let hungryCustomers=0;
     for (const customer of customers) {
+        if (customer.chair) {
+            const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
+            if (distanceToChair <= 10) {
+                customer.img.vX = 0;
+                customer.img.vY = 0;
+                customer.hasOrdered=true;
+            }
+        }
         if (!customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
                 customer.img.vY = 0;
@@ -198,6 +226,12 @@ function render(){
     }
     for (const interactable of interactables) {
         interactable.update();
+    }
+    for (const table of tables) {
+        for (const chair of table.chairs) {
+            chair.update();
+        }
+        table.update();
     }
 
     timer++;
@@ -227,6 +261,60 @@ function Rect(x, y, w, h, color){
 
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.w, this.h);
+    }
+}
+function Chair(img, x, y) {
+    this.img = img;
+    this.x = x;
+    this.y = y;
+    this.w = 30;
+    this.h = 30;
+    this.customer = null;
+    
+    // Set the image position to match the chair position
+    this.img.x = x;
+    this.img.y = y;
+    
+    this.update = function(){
+        this.img.update();
+    }
+}
+function Table(type, x, y) {
+
+    if (type === "double")
+    {
+        this.tableImg = new Image(document.getElementById("doubleTable"), x, y, 100, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y -30),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + -30),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 50)
+        ]
+    }
+    else if (type==="booth")
+    {
+        this.tableImg = new Image(document.getElementById("boothTable"), x, y, 50, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 10),
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 30),
+        ]
+    }
+    else { // "single"
+        this.tableImg = new Image(document.getElementById("table"), x, y, 50, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 10),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 30, y + 10),
+        ]
+    }
+    
+
+    this.x = x;
+    this.y = y;
+    this.w = 50;
+    this.h = 50;
+    
+    this.update = function(){
+        this.tableImg.update();
     }
 }
 
@@ -292,7 +380,7 @@ function Customer(ref, x, y, w, h){
     for (let i = 0; i <= Math.floor(Math.random() * 5); i++ ){
         this.order.push(menu[Math.floor(Math.random() * menu.length)]);
     }
-
+    this.chair = null;
 
     this.update = function update(){
         this.img.update();
