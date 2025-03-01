@@ -216,6 +216,13 @@ var fadeAlpha = 0; // added for kill fade animation
 let walkFrameCounter = 0;
 let useWalkingFrame1 = true;
 
+var failScreenActive = false;
+var failScreenAlpha = 0;
+
+function failGame() {
+    failScreenActive = true;
+}
+
 function render(){
     // --- Begin Screen Shake Effect ---
     ctx.save();
@@ -569,6 +576,32 @@ function render(){
             });
         }
     });
+
+    // Draw fail screen overlay if active
+    if (failScreenActive) {
+        // Fade in
+        if (failScreenAlpha < 1) {
+            failScreenAlpha += 0.01;
+        }
+        ctx.save();
+        ctx.globalAlpha = failScreenAlpha;
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = "black";
+        ctx.font = "50px Arial";
+        ctx.fillText("You Failed", canvas.width / 2 - 100, canvas.height / 2);
+        ctx.font = "24px Arial";
+        ctx.fillText("Press R to Restart", canvas.width / 2 - 110, canvas.height / 2 + 50);
+        ctx.restore();
+    }
+
+    // Listen for R to restart
+    if (failScreenActive && input[82]) {
+        location.reload();
+    }
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -1023,3 +1056,5 @@ function angleDifference(a, b) {
     while(diff > Math.PI) diff -= 2*Math.PI;
     return diff;
 }
+
+//failGame();
