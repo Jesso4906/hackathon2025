@@ -41,6 +41,7 @@ function render(){
     }
 
     logo.update();
+    dialogBox.update(); // Add this line
 }
 var updateLoop = window.setInterval(render, renderRate);
 
@@ -95,3 +96,83 @@ function Image(ref, x, y, w, h, angle)
 
     this.copy = function() { return new Image(ref, x, y, w, h, angle) }
 }
+
+function DialogBox() {
+    this.isActive = false;
+    this.text = "";
+    this.fullText = "";
+    this.charIndex = 0;
+    this.queue = [];
+    this.typeSpeed = 2; // characters per frame
+    this.margin = 20;
+    
+    this.showDialog = function(text) {
+        if (this.isActive) {
+            this.queue.push(text);
+            return;
+        }
+        this.isActive = true;
+        this.fullText = text;
+        this.text = "";
+        this.charIndex = 0;
+    }
+
+    this.update = function() {
+        if (!this.isActive) return;
+
+        // Type text effect
+        if (this.charIndex < this.fullText.length) {
+            this.charIndex += this.typeSpeed;
+            this.text = this.fullText.substring(0, this.charIndex);
+        }
+
+        // Draw dialog box
+        const boxHeight = 150;
+        const boxY = canvas.height - boxHeight - this.margin;
+        
+        // Draw box background
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        
+        // Draw border
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        
+        // Draw text
+        ctx.fillStyle = "white";
+        ctx.font = "24px monospace";
+        ctx.fillText(this.text, this.margin + 20, boxY + 40);
+
+        // Show continue indicator when text is complete
+        if (this.charIndex >= this.fullText.length) {
+            ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
+        }
+    }
+
+    this.advance = function() {
+        if (this.charIndex < this.fullText.length) {
+            // If still typing, complete the current text
+            this.charIndex = this.fullText.length;
+            this.text = this.fullText;
+        } else if (this.queue.length > 0) {
+            // Show next dialog in queue
+            this.showDialog(this.queue.shift());
+        } else {
+            // Close dialog
+            this.isActive = false;
+        }
+    }
+}
+
+const dialogBox = new DialogBox();
+
+// Add test dialog messages
+dialogBox.showDialog("Hello! This is the first message.");
+dialogBox.showDialog("This will show up after the first one!");
+
+document.addEventListener('keydown', (event) => {
+    if (event.code === 'Space' && dialogBox.isActive) {
+        dialogBox.advance();
+    }
+});
