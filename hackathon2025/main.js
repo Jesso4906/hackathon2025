@@ -210,25 +210,36 @@ function render(){
         interactable.update();
     }
     
-    // NEW: Killing mechanic - outline customers in red when nearby and kill on F key press
-    for (let i = 0; i < customers.length; i++){
-        const customer = customers[i];
-        const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
-        const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if(input[16] && distance < 60){ // Only show kill radius when Shift is held
+    // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
+    if(input[16]) { // when Shift is held
+        let nearestDistance = 60;
+        let nearestCustomer = null;
+        for (const customer of customers) {
+            const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
+            const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if(distance < nearestDistance){
+                nearestDistance = distance;
+                nearestCustomer = customer;
+            }
+        }
+        // Reset targeting for all customers
+        customers.forEach(customer => customer.targeted = false);
+        // If a customer is found, outline it
+        if(nearestCustomer){
+            nearestCustomer.targeted = true;
             ctx.save();
             ctx.strokeStyle = "red";
             ctx.lineWidth = 3;
-            ctx.strokeRect(customer.img.x, customer.img.y, customer.img.w, customer.img.h);
+            ctx.strokeRect(nearestCustomer.img.x, nearestCustomer.img.y, nearestCustomer.img.w, nearestCustomer.img.h);
             ctx.font = "30px serif";
             ctx.fillStyle = "red";
-            ctx.fillText("KILL?", customer.img.x, customer.img.y - 10);
+            ctx.fillText("KILL?", nearestCustomer.img.x, nearestCustomer.img.y - 10);
             ctx.restore();
-            customer.targeted = true;
-        } else {
-            customer.targeted = false;
         }
+    } else {
+        // Reset targeting if Shift is not held
+        customers.forEach(customer => customer.targeted = false);
     }
     if(input[70]){
         for (let i = 0; i < customers.length; i++){
