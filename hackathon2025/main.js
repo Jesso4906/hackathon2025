@@ -477,18 +477,30 @@ function getCollision(rect1, rect2, buffer){
     return collisionDetections;
 }
 
-// New function to add super cool urban lighting effect
+// Modified function to use customer-based lighting when kill target exists
 function drawUrbanLighting(){
     ctx.save();
-    // Position gradient at player's center
-    const centerX = logo.x + logo.w / 2;
-    const centerY = logo.y + logo.h / 2;
-    // Create a radial gradient with a hip urban night vibe
-    const gradient = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, 350);
-    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");         // Clear center
-    gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");       // Dim mid area
-    gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");       // Deep blue, dark outer edge
-    
+    let lightCenterX, lightCenterY, innerRadius, outerRadius, gradient;
+    const targetedCustomer = customers.find(c => c.targeted);
+    if(targetedCustomer){
+        lightCenterX = targetedCustomer.img.x + targetedCustomer.img.w / 2;
+        lightCenterY = targetedCustomer.img.y + targetedCustomer.img.h / 2;
+        innerRadius = 15;
+        outerRadius = 100;
+        gradient = ctx.createRadialGradient(lightCenterX, lightCenterY, innerRadius, lightCenterX, lightCenterY, outerRadius);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(0.7, "rgba(0, 0, 0, 0.8)");
+        gradient.addColorStop(1, "rgba(0, 0, 30, 0.95)");
+    } else {
+        lightCenterX = logo.x + logo.w / 2;
+        lightCenterY = logo.y + logo.h / 2;
+        innerRadius = 30;
+        outerRadius = 350;
+        gradient = ctx.createRadialGradient(lightCenterX, lightCenterY, innerRadius, lightCenterX, lightCenterY, outerRadius);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");
+        gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
