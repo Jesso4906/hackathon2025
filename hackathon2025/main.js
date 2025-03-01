@@ -114,15 +114,19 @@ function render(){
     }
     
     if(input[87] && !upBlocked){ // w
+        logo.angle = 0;
         logo.y -= playerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
+        logo.angle = Math.PI/2;
         logo.x -= playerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
+        logo.angle = Math.PI;
         logo.y += playerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
+        logo.angle = 3*Math.PI/2;
         logo.x += playerSpeed;
     }
 
@@ -171,15 +175,15 @@ function Image(ref, x, y, w, h, angle)
         this.x += this.vX;
         this.y += this.vY;
         
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.x + this.w/2, this.y + this.h/2);
 
         ctx.rotate(this.angle);
 
-        ctx.drawImage(this.ref, 0, 0, this.w, this.h);
+        ctx.drawImage(this.ref, -this.w/2, -this.h/2, this.w, this.h);
 
         ctx.rotate(-this.angle);
 
-        ctx.translate(-this.x, -this.y);
+        ctx.translate(-(this.x + this.w/2), -(this.y + this.h/2));
     }
 
     this.copy = function() { return new Image(ref, x, y, w, h, angle) }
