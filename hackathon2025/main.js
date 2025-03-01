@@ -24,7 +24,6 @@ document.addEventListener('mousemove', (event) =>
 const logo = new Image(logoImgRef,50,50,100,100,0)
 
 function render(){
-    ctx.clearRect(0, 0, canvas.width, canvas.height); //clear
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
