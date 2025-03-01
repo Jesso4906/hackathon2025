@@ -140,23 +140,41 @@ function DialogBox() {
             this.text = this.fullText.substring(0, this.charIndex);
         }
 
-        // Draw dialog box
         const boxHeight = 150;
         const boxY = canvas.height - boxHeight - this.margin;
         
-        // Draw box background
+        // Draw box background and border
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
-        
-        // Draw border
         ctx.strokeStyle = "white";
         ctx.lineWidth = 2;
         ctx.strokeRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
         
-        // Draw text
+        // Prepare for wrapped text
         ctx.fillStyle = "white";
         ctx.font = "24px monospace";
-        ctx.fillText(this.text, this.margin + 20, boxY + 40);
+        const maxWidth = canvas.width - (this.margin * 2) - 20; // inner text margin
+        let words = this.text.split(" ");
+        let line = "";
+        let lines = [];
+        for (let i = 0; i < words.length; i++) {
+            let testLine = line + words[i] + " ";
+            if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+                lines.push(line);
+                line = words[i] + " ";
+            } else {
+                line = testLine;
+            }
+        }
+        lines.push(line);
+        
+        // Draw each line
+        let lineY = boxY + 40;
+        const lineHeight = 30;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], this.margin + 20, lineY);
+            lineY += lineHeight;
+        }
 
         // Show continue indicator when text is complete
         if (this.charIndex >= this.fullText.length) {
@@ -186,6 +204,6 @@ const dialogBox = new DialogBox();
 
 // Update test dialog messages with instructions
 dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
-dialogBox.showDialog("This will show up after the first one!");
+dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
