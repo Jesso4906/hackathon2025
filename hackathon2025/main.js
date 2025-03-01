@@ -12,6 +12,8 @@ window.addEventListener('resize', () => {
 });
 
 const logoImgRef = document.getElementById("logo");
+const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
+const walking2ImgRef = document.getElementById("walking2"); // added walking image reference
 const customerImgRef = document.getElementById("coin");
 
 const renderRate = 20;
@@ -45,6 +47,10 @@ const customers = [];
 var nextSpawnTime = Math.floor(Math.random() * 20) + 5;
 var timer = 0;
 
+// Add variables to handle walking animation
+let walkFrameCounter = 0;
+let useWalkingFrame1 = true;
+
 function render(){
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -70,6 +76,21 @@ function render(){
         }
     }
     
+    // Determine if the player (logo) is moving based on WASD keys
+    const isMoving = input[87] || input[65] || input[83] || input[68];
+    
+    // Update animation frame only when moving, else use standing image
+    if(isMoving){
+        walkFrameCounter++;
+        if(walkFrameCounter >= 10){
+            useWalkingFrame1 = !useWalkingFrame1;
+            walkFrameCounter = 0;
+        }
+        logo.ref = useWalkingFrame1 ? walking1ImgRef : walking2ImgRef;
+    } else {
+        logo.ref = logoImgRef;
+    }
+
     if(input[87] && !upBlocked){ // w
         logo.angle = 0;
         logo.y -= playerSpeed;
