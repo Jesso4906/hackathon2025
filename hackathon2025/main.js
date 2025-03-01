@@ -23,6 +23,8 @@ rect.update();
 
 function render(){
     ctx.clearRect(0, 0, canvas.width, canvas.height); //clear
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     if(input[87]){ // w
         rect.y--;
