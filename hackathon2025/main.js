@@ -283,36 +283,6 @@ function render(){
         time += (renderRate / 1000) * timeScale;
         money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
     }
-    
-    ctx.font = "50px Arial";
-    ctx.fillStyle = "red";
-    let ampm = "AM";
-    let hour = Math.floor(time / 60);
-    if(hour >= 12){
-        ampm = "PM";
-        hour -= 12;
-        if(hour == 0){
-            hour = 12;
-        }
-    }
-    let minute = Math.floor(time % 60);
-
-    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
-    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
-    if(currentOrder){
-        ctx.fillText("Order: ", 10, 400);
-        for (let i = 0; i < currentOrder.length; i++) {
-            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
-                ctx.fillStyle = "green";
-            }
-            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
-            ctx.fillStyle = "red";
-        }
-    }
-
-    if(hasTray){
-        ctx.fillText("Tray", 250, 400);
-    }
 
     logo.update();
     for (const wall of mapWalls) {
@@ -354,6 +324,36 @@ function render(){
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
+
+    ctx.font = "50px Arial";
+    ctx.fillStyle = "red";
+    let ampm = "AM";
+    let hour = Math.floor(time / 60);
+    if(hour >= 12){
+        ampm = "PM";
+        hour -= 12;
+        if(hour == 0){
+            hour = 12;
+        }
+    }
+    let minute = Math.floor(time % 60);
+
+    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
+    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
+    if(currentOrder){
+        ctx.fillText("Order: ", 10, 400);
+        for (let i = 0; i < currentOrder.length; i++) {
+            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
+                ctx.fillStyle = "green";
+            }
+            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
+            ctx.fillStyle = "red";
+        }
+    }
+
+    if(hasTray){
+        ctx.fillText("Tray", 250, 400);
+    }
     
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
