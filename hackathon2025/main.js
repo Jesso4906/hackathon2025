@@ -140,7 +140,11 @@ function render(){
     }
 
     timer++;
+    
+    // New: Apply urban city lighting effect overlay
+    drawUrbanLighting();
 }
+
 var updateLoop = window.setInterval(render, renderRate);
 
 function Rect(x, y, w, h, color){
@@ -344,4 +348,21 @@ function getCollision(rect1, rect2, buffer){
     }
 
     return collisionDetections;
+}
+
+// New function to add super cool urban lighting effect
+function drawUrbanLighting(){
+    ctx.save();
+    // Position gradient at player's center
+    const centerX = logo.x + logo.w / 2;
+    const centerY = logo.y + logo.h / 2;
+    // Create a radial gradient with a hip urban night vibe
+    const gradient = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, 350);
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");         // Clear center
+    gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");       // Dim mid area
+    gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");       // Deep blue, dark outer edge
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
 }
