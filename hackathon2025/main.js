@@ -40,7 +40,7 @@ const mapWalls = [
 
 const interactables = [];
 let readyCustomer;
-const register = new interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
         return;
@@ -58,9 +58,8 @@ const register = new interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
         dialogBox.showDialog(orderString);
         readyCustomer.hasOrdered = true;
         currentOrder = readyCustomer.order;
+        readyCustomer = null;
     }
-    readyCustomer = null;
-    
 });
 interactables.push(register);
 
@@ -68,13 +67,16 @@ const collisionBuffer = 5;
 
 const playerSpeed = 5;
 const customerSpeed = 1;
+const customerMinSpawnTime = 1;
+const customerMaxSpawnTime = 2;
+
 const inventory = [];
 let currentOrder;
 
 const customers = [];
 
 
-var nextSpawnTime = Math.floor(Math.random() * 20) + 5;
+var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
 var timer = 0;
 
 function render(){
@@ -132,7 +134,7 @@ function render(){
 
         customers.push(newCustomer);
         timer = 0;
-        nextSpawnTime = Math.floor(Math.random() * 20) + 5;
+        nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
     }
 
     // Interaction Detection "e"
@@ -141,9 +143,9 @@ function render(){
         nearestInteractable = null;
         for (interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
-            console.log(distance);
             if (distance < 50) {
                 interactable.interact();
+                break;
             }
         }
     }
@@ -157,11 +159,10 @@ function render(){
 
     let hungryCustomers=0;
     for (const customer of customers) {
-        console.log(hungryCustomers);
         if (!customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
                 customer.img.vY = 0;
-                readyCustomer = customer;
+                readyCustomer = readyCustomer == null ? customer : readyCustomer;
             } else {
                 customer.img.vY = customerSpeed;
             }
@@ -225,7 +226,7 @@ function Image(ref, x, y, w, h, angle){
     this.copy = function() { return new Image(ref, x, y, w, h, angle) }
 }
 
-function interactable(img, x, y, w, h, angle, interact){
+function Interactable(img, x, y, w, h, angle, interact){
     this.img = new Image(img, x, y, w, h, angle);
     this.interact = interact;
     this.update = function(){
