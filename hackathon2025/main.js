@@ -187,6 +187,7 @@ function render(){
     }
     
     ctx.font = "50px Arial";
+    ctx.fillStyle = "red";
     let ampm = "AM";
     let hour = Math.floor(time / 60);
     if(hour >= 12){
@@ -223,7 +224,7 @@ function render(){
         interactable.update();
     }
 
-    timer++;
+    customerSpawnTimer++;
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
