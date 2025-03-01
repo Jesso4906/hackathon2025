@@ -81,6 +81,7 @@ const customers = [];
 
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
 var timer = 0;
+var fadeAlpha = 0; // added for kill fade animation
 
 // Add variables to handle walking animation
 let walkFrameCounter = 0;
@@ -230,7 +231,14 @@ function render(){
         }
         input[70] = false;
     }
-
+    
+    // Update fadeAlpha for quick fade in when kill is in range
+    if (customers.some(c => c.targeted)) {
+        fadeAlpha = Math.min(fadeAlpha + 0.15, 1); // quick fade in
+    } else {
+        fadeAlpha = 0;
+    }
+    
     timer++;
     
     // New: Apply urban city lighting effect overlay
@@ -477,31 +485,30 @@ function getCollision(rect1, rect2, buffer){
     return collisionDetections;
 }
 
-// Modified function to adjust the customer light size and gradient
+// Modified drawUrbanLighting function for quick fade in animation
 function drawUrbanLighting(){
     ctx.save();
-    let lightCenterX, lightCenterY, innerRadius, outerRadius, gradient;
-    const targetedCustomer = customers.find(c => c.targeted);
-    if(targetedCustomer){
-        lightCenterX = targetedCustomer.img.x + targetedCustomer.img.w / 2;
-        lightCenterY = targetedCustomer.img.y + targetedCustomer.img.h / 2;
-        innerRadius = 10;    // smaller central light
-        outerRadius = 120;   // extended gradient out a bit
-        gradient = ctx.createRadialGradient(lightCenterX, lightCenterY, innerRadius, lightCenterX, lightCenterY, outerRadius);
-        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-        gradient.addColorStop(0.7, "rgba(0, 0, 0, 0.8)");
-        gradient.addColorStop(1, "rgba(0, 0, 30, 0.95)");
-    } else {
-        lightCenterX = logo.x + logo.w / 2;
-        lightCenterY = logo.y + logo.h / 2;
-        innerRadius = 30;
-        outerRadius = 350;
-        gradient = ctx.createRadialGradient(lightCenterX, lightCenterY, innerRadius, lightCenterX, lightCenterY, outerRadius);
-        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-        gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");
-        gradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");
-    }
-    ctx.fillStyle = gradient;
+    let playerCenterX = logo.x + logo.w/2;
+    let playerCenterY = logo.y + logo.h/2;
+    let playerGradient = ctx.createRadialGradient(playerCenterX, playerCenterY, 30, playerCenterX, playerCenterY, 350);
+    playerGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    playerGradient.addColorStop(0.5, "rgba(0, 0, 0, 0.5)");
+    playerGradient.addColorStop(1, "rgba(0, 0, 50, 0.95)");
+    ctx.fillStyle = playerGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    if(customers.find(c => c.targeted)){
+        const targetedCustomer = customers.find(c => c.targeted);
+        let customerCenterX = targetedCustomer.img.x + targetedCustomer.img.w/2;
+        let customerCenterY = targetedCustomer.img.y + targetedCustomer.img.h/2;
+        ctx.globalAlpha = fadeAlpha;
+        let customerGradient = ctx.createRadialGradient(customerCenterX, customerCenterY, 10, customerCenterX, customerCenterY, 120);
+        customerGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        customerGradient.addColorStop(0.7, "rgba(0, 0, 0, 0.8)");
+        customerGradient.addColorStop(1, "rgba(0, 0, 30, 0.95)");
+        ctx.fillStyle = customerGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+    }
     ctx.restore();
 }
