@@ -211,6 +211,7 @@ function render(){
 
 
     if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
+        console.log("FSDFSFDF")
         const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
@@ -278,6 +279,7 @@ function render(){
             hungryCustomers++;
         }
         customer.update();
+        console.log("UPDATE")
     }
 
     // Ensure readyCustomer is always set if available,
@@ -288,9 +290,6 @@ function render(){
     if (!readyCustomer) {
         readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
     }
-
-    // Debug: log the current ready customer
-    console.debug("Current readyCustomer:", readyCustomer);
 
     for (const interactable of interactables) {
         interactable.update();
@@ -377,7 +376,7 @@ function render(){
         fadeAlpha = 0;
     }
     
-    timer++;
+    customerSpawnTimer++;
 
     for (const table of tables) {
         for (const chair of table.chairs) {
