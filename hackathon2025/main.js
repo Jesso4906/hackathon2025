@@ -151,7 +151,7 @@ const foodDispenser = new Interactable(foodDispenserImg, 0, 150, 50, 50, Math.PI
 interactables.push(foodDispenser);
 
 const drinkDispenserImg = document.getElementById("drinkDispenser");
-const drinkDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
+const drinkDispenser = new Interactable(drinkDispenserImg, 0, 200, 50, 50, Math.PI / 2, function(){
     if(drinksToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Drink",
@@ -170,7 +170,7 @@ const drinkDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2,
 interactables.push(drinkDispenser);
 
 const iceCreamDispenserImg = document.getElementById("icecreamMachine");
-const iceCreamDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
+const iceCreamDispenser = new Interactable(iceCreamDispenserImg, 0, 250, 50, 50, Math.PI / 2, function(){
     if(iceCreamToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Ice Cream",
