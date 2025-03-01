@@ -38,10 +38,42 @@ const mapWalls = [
     new Rect(canvas.width-10,0,10,canvas.height,"red")
 ];
 
+const interactables = [];
+let readyCustomer;
+const register = new interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+    if (currentOrder) {
+        dialogBox.showDialog("You already have an order to prepare");
+        return;
+    }
+    if (readyCustomer){
+        dialogBox.showDialog("Hello! I would like to order some food.");
+        let orderString = "I would like ";
+        for (let i = 0; i < readyCustomer.order.length; i++) { 
+            orderString += readyCustomer.order[i];
+            if (i < readyCustomer.order.length - 1) {
+                orderString += ", ";
+            }
+        }
+        orderString += ".";
+        dialogBox.showDialog(orderString);
+        readyCustomer.hasOrdered = true;
+        currentOrder = readyCustomer.order;
+    }
+    readyCustomer = null;
+    
+});
+interactables.push(register);
+
 const collisionBuffer = 5;
+
 const playerSpeed = 5;
+const customerSpeed = 1;
+const inventory = [];
+let currentOrder;
 
 const customers = [];
+
+
 var nextSpawnTime = Math.floor(Math.random() * 20) + 5;
 var timer = 0;
 
@@ -95,12 +127,27 @@ function render(){
     }
 
     if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
-        const newCustomer = new Customer(customerImgRef, 200, 500, 50, 50);
-        newCustomer.img.vY = -1;
+        const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
+        newCustomer.img.vY = customerSpeed;
+
         customers.push(newCustomer);
         timer = 0;
         nextSpawnTime = Math.floor(Math.random() * 20) + 5;
     }
+
+    // Interaction Detection "e"
+    if (input[69] ) {
+        input[69] = false;
+        nearestInteractable = null;
+        for (interactable of interactables) {
+            const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
+            console.log(distance);
+            if (distance < 50) {
+                interactable.interact();
+            }
+        }
+    }
+    
 
     logo.update();
     dialogBox.update();
@@ -108,8 +155,22 @@ function render(){
         wall.update();
     }
 
+    let hungryCustomers=0;
     for (const customer of customers) {
+        console.log(hungryCustomers);
+        if (!customer.hasOrdered && !customer.hasEaten) {
+            if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
+                customer.img.vY = 0;
+                readyCustomer = customer;
+            } else {
+                customer.img.vY = customerSpeed;
+            }
+            hungryCustomers++;
+        }
         customer.update();
+    }
+    for (const interactable of interactables) {
+        interactable.update();
     }
 
     timer++;
@@ -164,10 +225,40 @@ function Image(ref, x, y, w, h, angle){
     this.copy = function() { return new Image(ref, x, y, w, h, angle) }
 }
 
+function interactable(img, x, y, w, h, angle, interact){
+    this.img = new Image(img, x, y, w, h, angle);
+    this.interact = interact;
+    this.update = function(){
+        this.img.update();
+    }
+}
+const menu = [
+    "Cheeseburger",
+    "Hamburger",
+    "Double Cheeseburger",
+    "Double Hamburger",
+    "Chicken Sandwich",
+    "Fish Sandwich",
+    "Fries",
+    "Nuggets",
+    "Soda",
+    "Diet Soda",
+    "Milkshake",
+    "Vanilla Ice cream",
+    "Chocolate Ice cream",
+    "Strawberry Ice cream",
+
+]
+
 function Customer(ref, x, y, w, h){
     this.img = new Image(ref, x, y, w, h, 0);
     this.hasOrdered = false;
     this.hasEaten = false;
+    this.order = [];
+    for (let i = 0; i <= Math.floor(Math.random() * 5); i++ ){
+        this.order.push(menu[Math.floor(Math.random() * menu.length)]);
+    }
+
 
     this.update = function update(){
         this.img.update();
