@@ -1,12 +1,19 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+// Update canvas dimensions to viewport dimensions
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Add listener to update canvas size on window resize
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
 const logoImgRef = document.getElementById("logo");
 
 const renderRate = 20;
-
-canvas.width = "1000";
-canvas.height = "1000";
 
 var input = []; // the index corresponds to the keycode
 var handleInput = (event) => { input[event.keyCode] = event.type == 'keydown'; }
