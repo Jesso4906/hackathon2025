@@ -49,6 +49,15 @@ const interactables = [];
 let readyCustomer;
 const customerSpeed = 1;
 
+const foodToBeDispensed = [];
+const drinksToBeDispensed = [];
+const iceCreamToBeDispensed = [];
+
+const inventory = [];
+
+let hasTray = false;
+let finishedOrder = false;
+
 const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
@@ -58,6 +67,15 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
         dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
         for (let i = 0; i < readyCustomer.order.length; i++) { 
+            if(menu.findIndex(item => item === readyCustomer.order[i]) < 8){
+                foodToBeDispensed.push(readyCustomer.order[i]);
+            }
+            else if(menu.findIndex(item => item === readyCustomer.order[i]) < 11){
+                drinksToBeDispensed.push(readyCustomer.order[i]);
+            }
+            else {
+                iceCreamToBeDispensed.push(readyCustomer.order[i]);
+            }
             orderString += readyCustomer.order[i];
             if (i < readyCustomer.order.length - 1) {
                 orderString += ", ";
@@ -87,6 +105,67 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
 });
 interactables.push(register);
 
+const foodDispenser = new Interactable(logoImgRef, 300, 300, 50, 50, 0, function(){
+    if(foodToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Food",
+            foodToBeDispensed,
+            function(choice) {
+                foodToBeDispensed.splice(foodToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(foodDispenser);
+
+const drinkDispenser = new Interactable(logoImgRef, 400, 300, 50, 50, 0, function(){
+    if(drinksToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Drink",
+            drinksToBeDispensed,
+            function(choice) {
+                drinksToBeDispensed.splice(drinksToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(drinkDispenser);
+
+const iceCreamDispenser = new Interactable(logoImgRef, 500, 300, 50, 50, 0, function(){
+    if(iceCreamToBeDispensed.length > 0){
+        dialogBox.showChoiceDialog(
+            "Select Ice Cream",
+            iceCreamToBeDispensed,
+            function(choice) {
+                iceCreamToBeDispensed.splice(iceCreamToBeDispensed.findIndex(item => item === choice), 1);
+                inventory.push(choice);
+
+                if(foodToBeDispensed.length == 0 && drinksToBeDispensed.length === 0 && iceCreamToBeDispensed.length === 0){
+                    finishedOrder = true;
+                }
+            }
+        );
+    }
+});
+interactables.push(iceCreamDispenser);
+
+const trays = new Interactable(logoImgRef, 600, 300, 50, 50, 0, function(){
+    if(finishedOrder){
+        hasTray = true;
+    }
+});
+interactables.push(trays);
+
 const collisionBuffer = 5;
 
 const playerSpeed = 5;
@@ -98,7 +177,6 @@ const timeScale = 4;
 let money = 0;
 let time = 9*60; // start at 9:00 AM
 
-const inventory = [];
 let currentOrder;
 
 const customers = [];
@@ -221,6 +299,20 @@ function render(){
 
     ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
     ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
+    if(currentOrder){
+        ctx.fillText("Order: ", 10, 400);
+        for (let i = 0; i < currentOrder.length; i++) {
+            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
+                ctx.fillStyle = "green";
+            }
+            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
+            ctx.fillStyle = "red";
+        }
+    }
+
+    if(hasTray){
+        ctx.fillText("Tray", 250, 400);
+    }
 
     logo.update();
     for (const wall of mapWalls) {
@@ -628,15 +720,3 @@ function drawUrbanLighting(){
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 }
-
-// HERE IS AN EXAMPLE OF ADDING A CHOICE DIALONG Test: Show a choice dialog at the start
-window.addEventListener("load", function() {
-    dialogBox.showChoiceDialog(
-        "Start the game?",
-        ["Yes", "No", "Maybe"],
-        function(choice) {
-            console.log("User selected:", choice);
-            // Add the event you want to do with the choice
-        }
-    );
-});
