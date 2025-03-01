@@ -17,6 +17,14 @@ const walking2ImgRef = document.getElementById("walking2"); // added walking ima
 const customerImgRef = document.getElementById("coin");
 const lobbyFloor = document.getElementById("floor");
 
+// Add new customer image references
+const customerStandImgRef = document.getElementById("customerStand");
+const customerWalk1ImgRef = document.getElementById("customerWalk1");
+const customerWalk2ImgRef = document.getElementById("customerWalk2");
+const KcustomerStandImgRef = document.getElementById("KcustomerStand");
+const KcustomerWalk1ImgRef = document.getElementById("KcustomerWalk1");
+const KcustomerWalk2ImgRef = document.getElementById("KcustomerWalk2");
+
 const renderRate = 20;
 
 var input = []; // the index corresponds to the keycode
@@ -166,9 +174,9 @@ function render(){
     }
 
     if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
-        const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
+        // Instantiate Customer with new parameters and set vertical velocity
+        const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
-
         customers.push(newCustomer);
         timer = 0;
         nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
@@ -229,9 +237,9 @@ function render(){
         if(nearestCustomer){
             nearestCustomer.targeted = true;
             ctx.save();
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(nearestCustomer.img.x, nearestCustomer.img.y, nearestCustomer.img.w, nearestCustomer.img.h);
+            //ctx.strokeStyle = "red";
+            //ctx.lineWidth = 3;
+            //ctx.strokeRect(nearestCustomer.img.x, nearestCustomer.img.y, nearestCustomer.img.w, nearestCustomer.img.h);
             ctx.font = "30px serif";
             ctx.fillStyle = "red";
             ctx.fillText("KILL?", nearestCustomer.img.x, nearestCustomer.img.y - 10);
@@ -345,17 +353,40 @@ const menu = [
 
 ]
 
-function Customer(ref, x, y, w, h){
-    this.img = new Image(ref, x, y, w, h, 0);
+// Update Customer constructor to implement walking animation and kill images
+function Customer(x, y, w, h){
+    this.images = {
+        stand: customerStandImgRef,
+        walk1: customerWalk1ImgRef,
+        walk2: customerWalk2ImgRef,
+        killStand: KcustomerStandImgRef,
+        killWalk1: KcustomerWalk1ImgRef,
+        killWalk2: KcustomerWalk2ImgRef
+    };
+    // Update: Set angle so that customer faces downward instead of backwards
+    this.img = new Image(this.images.stand, x, y, w, h, Math.PI);
     this.hasOrdered = false;
     this.hasEaten = false;
     this.order = [];
     for (let i = 0; i <= Math.floor(Math.random() * 5); i++ ){
         this.order.push(menu[Math.floor(Math.random() * menu.length)]);
     }
-
-
+    this.walkFrameCounter = 0;
+    this.useWalkingFrame1 = true;
+    
     this.update = function update(){
+        if(this.img.vY !== 0){ // moving => animate walking
+            this.walkFrameCounter++;
+            if(this.walkFrameCounter >= 10){
+                this.useWalkingFrame1 = !this.useWalkingFrame1;
+                this.walkFrameCounter = 0;
+            }
+            this.img.ref = this.targeted
+                ? (this.useWalkingFrame1 ? this.images.killWalk1 : this.images.killWalk2)
+                : (this.useWalkingFrame1 ? this.images.walk1 : this.images.walk2);
+        } else { // standing
+            this.img.ref = this.targeted ? this.images.killStand : this.images.stand;
+        }
         this.img.update();
     }
 }
