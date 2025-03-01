@@ -86,6 +86,11 @@ const customerSpeed = 1;
 const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
 
+const hourlyWage = 10;
+const timeScale = 2;
+let money = 0;
+let time = 9*60; // start at 9:00 AM
+
 const inventory = [];
 let currentOrder;
 
@@ -206,6 +211,20 @@ function render(){
             }
         }
     }
+
+    time += (renderRate / 1000) * timeScale;
+    money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    ctx.font = "50px Arial";
+    let ampm = "AM";
+    let hour = Math.floor(time / 60);
+    if(hour >= 12){
+        ampm = "PM";
+        hour -= 12;
+    }
+    let minute = Math.floor(time % 60);
+
+    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
+    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
     
 
     logo.update();
