@@ -130,7 +130,6 @@ function render(){
     }
 
     logo.update();
-    dialogBox.update();
     for (const wall of mapWalls) {
         wall.update();
     }
@@ -143,6 +142,9 @@ function render(){
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
+    
+    // Draw the dialog box on top so that it always shows up
+    dialogBox.update();
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -235,14 +237,16 @@ function DialogBox() {
         }
 
         const boxHeight = 150;
+        const boxX = this.margin;
         const boxY = canvas.height - boxHeight - this.margin;
+        const boxWidth = canvas.width - (this.margin * 2);
         
         // Draw box background and border
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         ctx.strokeStyle = "white";
         ctx.lineWidth = 2;
-        ctx.strokeRect(this.margin, boxY, canvas.width - (this.margin * 2), boxHeight);
+        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
         
         // Prepare for wrapped text
         ctx.fillStyle = "white";
