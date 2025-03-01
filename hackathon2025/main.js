@@ -25,6 +25,9 @@ const KcustomerStandImgRef = document.getElementById("KcustomerStand");
 const KcustomerWalk1ImgRef = document.getElementById("KcustomerWalk1");
 const KcustomerWalk2ImgRef = document.getElementById("KcustomerWalk2");
 
+// Add new dead customer image reference
+const customerDeadImgRef = document.getElementById("customerDead");
+
 const renderRate = 20;
 
 var input = []; // the index corresponds to the keycode
@@ -202,8 +205,10 @@ function render(){
     }
 
     let hungryCustomers=0;
+    // Update order logic to ignore dead customers
     for (const customer of customers) {
-        if (!customer.hasOrdered && !customer.hasEaten) {
+        // Only non-dead customers join the order line
+        if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
                 customer.img.vY = 0;
                 readyCustomer = readyCustomer == null ? customer : readyCustomer;
@@ -219,10 +224,12 @@ function render(){
     }
     
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
+    // Modified kill mechanic section to skip dead customers
     if(input[16]) { // when Shift is held
         let nearestDistance = 60;
         let nearestCustomer = null;
         for (const customer of customers) {
+            if(customer.dead) continue; // skip dead customers
             const dx = (logo.x + logo.w/2) - (customer.img.x + customer.img.w/2);
             const dy = (logo.y + logo.h/2) - (customer.img.y + customer.img.h/2);
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -233,13 +240,10 @@ function render(){
         }
         // Reset targeting for all customers
         customers.forEach(customer => customer.targeted = false);
-        // If a customer is found, outline it
+        // If a valid customer is found, outline it
         if(nearestCustomer){
             nearestCustomer.targeted = true;
             ctx.save();
-            //ctx.strokeStyle = "red";
-            //ctx.lineWidth = 3;
-            //ctx.strokeRect(nearestCustomer.img.x, nearestCustomer.img.y, nearestCustomer.img.w, nearestCustomer.img.h);
             ctx.font = "30px serif";
             ctx.fillStyle = "red";
             ctx.fillText("KILL?", nearestCustomer.img.x, nearestCustomer.img.y - 10);
@@ -251,8 +255,9 @@ function render(){
     }
     if(input[70]){
         for (let i = 0; i < customers.length; i++){
-            if(customers[i].targeted){
-                customers.splice(i, 1);
+            if(customers[i].targeted && !customers[i].dead){
+                customers[i].dead = true;
+                customers[i].img.vY = 0;  // freeze movement
                 break;
             }
         }
@@ -353,7 +358,7 @@ const menu = [
 
 ]
 
-// Update Customer constructor to implement walking animation and kill images
+// Update Customer constructor to implement walking animation, kill images, and dead state
 function Customer(x, y, w, h){
     this.images = {
         stand: customerStandImgRef,
@@ -363,7 +368,6 @@ function Customer(x, y, w, h){
         killWalk1: KcustomerWalk1ImgRef,
         killWalk2: KcustomerWalk2ImgRef
     };
-    // Update: Set angle so that customer faces downward instead of backwards
     this.img = new Image(this.images.stand, x, y, w, h, Math.PI);
     this.hasOrdered = false;
     this.hasEaten = false;
@@ -373,8 +377,18 @@ function Customer(x, y, w, h){
     }
     this.walkFrameCounter = 0;
     this.useWalkingFrame1 = true;
+    // New: dead flag
+    this.dead = false;
     
     this.update = function update(){
+        // If dead, use dead sprite and exit without animating
+        if(this.dead){
+            this.img.ref = customerDeadImgRef;
+            this.img.vX = 0;
+            this.img.vY = 0;
+            this.img.update();
+            return;
+        }
         if(this.img.vY !== 0){ // moving => animate walking
             this.walkFrameCounter++;
             if(this.walkFrameCounter >= 10){
