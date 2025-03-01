@@ -75,7 +75,7 @@ function render(){
         logo.y -= playerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
-        logo.angle = Math.PI/2;
+        logo.angle = 3*Math.PI/2;
         logo.x -= playerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
@@ -83,7 +83,7 @@ function render(){
         logo.y += playerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
-        logo.angle = 3*Math.PI/2;
+        logo.angle = Math.PI/2;
         logo.x += playerSpeed;
     }
     
