@@ -28,6 +28,8 @@ const KcustomerWalk2ImgRef = document.getElementById("KcustomerWalk2");
 // Add new dead customer image reference
 const customerDeadImgRef = document.getElementById("customerDead");
 
+const bloodSplatImgRef = document.getElementById("bloodSplat");
+
 const renderRate = 20;
 
 var input = []; // the index corresponds to the keycode
@@ -226,6 +228,19 @@ function render(){
         }
         customer.update();
     }
+
+    // Ensure readyCustomer is always set if available,
+    // and if the current readyCustomer is dead, reassign to the next candidate.
+    if (readyCustomer && readyCustomer.dead) {
+        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+    }
+    if (!readyCustomer) {
+        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+    }
+
+    // Debug: log the current ready customer
+    console.debug("Current readyCustomer:", readyCustomer);
+
     for (const interactable of interactables) {
         interactable.update();
     }
@@ -323,28 +338,48 @@ function render(){
     
     // Draw cones for each alive customer and check for dead bodies in their range
     customers.forEach(customer => {
-        if(!customer.dead) { // alive only
+        if (!customer.dead) { // alive only
             let cx = customer.img.x + customer.img.w / 2;
             let cy = customer.img.y + customer.img.h / 2;
-            // Change cone parameters: now using π/2 for downward direction
-            let coneDir = Math.PI / 2; 
+            let coneDir = Math.PI / 2;  // downward beam
             let halfAngle = Math.PI / 6;
             let coneRange = 150;
+            let innerRadius = 20;
+            // Show the flashlight beam only for the first customer in the order line (readyCustomer)
+            // when the player is holding a dead body OR has already ordered.
+            if (customer === readyCustomer && (customers.some(c => c.dragging) || customer.hasOrdered)) {
+                ctx.save();
+                let playerCenterX = logo.x + logo.w / 2;
+                let playerCenterY = logo.y + logo.h / 2;
+                let lightRadius = 350;
+                ctx.beginPath();
+                ctx.arc(playerCenterX, playerCenterY, lightRadius, 0, 2 * Math.PI);
+                ctx.clip();
+                
+                ctx.beginPath();
+                ctx.moveTo(cx, cy + innerRadius);
+                let leftX = cx + coneRange * Math.cos(coneDir - halfAngle);
+                let leftY = cy + coneRange * Math.sin(coneDir - halfAngle);
+                let rightX = cx + coneRange * Math.cos(coneDir + halfAngle);
+                let rightY = cy + coneRange * Math.sin(coneDir + halfAngle);
+                
+                let leftCtrlX = cx + (leftX - cx) * 0.5;
+                let leftCtrlY = cy + innerRadius; 
+                ctx.bezierCurveTo(leftCtrlX, leftCtrlY, leftCtrlX, leftY, leftX, leftY);
+                ctx.quadraticCurveTo(cx, cy + coneRange + 20, rightX, rightY);
+                let rightCtrlX = cx + (rightX - cx) * 0.5;
+                ctx.bezierCurveTo(rightCtrlX, rightY, rightCtrlX, cy + innerRadius, cx, cy + innerRadius);
+                ctx.closePath();
+                
+                let beamGradient = ctx.createLinearGradient(cx, cy, cx, cy + coneRange);
+                beamGradient.addColorStop(0, "rgba(255,255,255,0.2)");
+                beamGradient.addColorStop(1, "rgba(255,255,255,0)");
+                ctx.fillStyle = beamGradient;
+                ctx.fill();
+                ctx.restore();
+            }
             
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            let leftX = cx + coneRange * Math.cos(coneDir - halfAngle);
-            let leftY = cy + coneRange * Math.sin(coneDir - halfAngle);
-            let rightX = cx + coneRange * Math.cos(coneDir + halfAngle);
-            let rightY = cy + coneRange * Math.sin(coneDir + halfAngle);
-            ctx.lineTo(leftX, leftY);
-            ctx.lineTo(rightX, rightY);
-            ctx.closePath();
-            ctx.strokeStyle = "yellow";
-            ctx.stroke();
-            
-            // Check dead customers inside cone
+            // Always perform dead body detection:
             customers.forEach(other => {
                 if(other.dead) {
                     let ocx = other.img.x + other.img.w / 2;
@@ -360,7 +395,6 @@ function render(){
                     }
                 }
             });
-            ctx.restore();
         }
     });
 }
@@ -467,14 +501,32 @@ function Customer(x, y, w, h){
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
-                // Instead of teleporting behind the player, follow using the saved offset.
+                // Use dragging logic for the dead body (body moves, but blood splat stays fixed)
                 this.img.x = logo.x + this.dragOffsetX;
                 this.img.y = logo.y + this.dragOffsetY;
             }
+            // Initialize blood properties on first death
+            if(this.bloodAlpha === undefined) {
+                this.bloodAlpha = 1;
+            }
+            if(this.bloodX === undefined) {
+                this.bloodX = this.img.x;
+                this.bloodY = this.img.y;
+                this.bloodW = this.img.w;
+                this.bloodH = this.img.h;
+            }
+            // Draw the blood splat first (it stays on the floor)
+            ctx.save();
+            ctx.globalAlpha = this.bloodAlpha;
+            ctx.drawImage(bloodSplatImgRef, this.bloodX, this.bloodY, this.bloodW, this.bloodH);
+            ctx.restore();
+            // Then draw the dead body on top
             this.img.ref = customerDeadImgRef;
             this.img.vX = 0;
             this.img.vY = 0;
             this.img.update();
+            // Fade away over 600 frames (~30 sec at 20 fps)
+            this.bloodAlpha = Math.max(this.bloodAlpha - (1/600), 0);
             return;
         }
         if(this.img.vY !== 0){ // moving => animate walking
