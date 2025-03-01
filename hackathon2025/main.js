@@ -1,6 +1,8 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const logoImgRef = document.getElementById("logo");
+
 const renderRate = 20;
 
 canvas.width = "1000";
@@ -18,8 +20,8 @@ document.addEventListener('mousemove', (event) =>
     mousePos.y = event.y;
 });
 
-const rect = new Rect(0,0,100,100,"yellow");
-rect.update();
+//const rect = new Rect(0,0,100,100,"yellow");
+const logo = new Image(logoImgRef,50,50,100,100,0)
 
 function render(){
     ctx.clearRect(0, 0, canvas.width, canvas.height); //clear
@@ -27,19 +29,19 @@ function render(){
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     if(input[87]){ // w
-        rect.y--;
+        logo.y--;
     }
     if(input[65]){ // a
-        rect.x--;
+        logo.x--;
     }
     if(input[83]){ // s
-        rect.y++;
+        logo.y++;
     }
     if(input[68]){ // d
-        rect.x++;
+        logo.x++;
     }
 
-    rect.update();
+    logo.update();
 }
 var updateLoop = window.setInterval(render, renderRate);
 
@@ -62,4 +64,35 @@ function Rect(x, y, w, h, color)
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.w, this.h);
     }
+}
+
+function Image(ref, x, y, w, h, angle)
+{
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.angle = angle;
+    this.ref = ref;
+
+    this.vX = 0; // Velocity
+    this.vY = 0;
+
+    this.update = function update()
+    {
+        this.x += this.vX;
+        this.y += this.vY;
+        
+        ctx.translate(this.x, this.y);
+
+        ctx.rotate(this.angle);
+
+        ctx.drawImage(this.ref, 0, 0, this.w, this.h);
+
+        ctx.rotate(-this.angle);
+
+        ctx.translate(-this.x, -this.y);
+    }
+
+    this.copy = function() { return new Image(ref, x, y, w, h, angle) }
 }
