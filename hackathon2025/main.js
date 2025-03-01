@@ -77,8 +77,15 @@ let hasTray = false;
 let finishedOrder = false;
 const registerImgRef = document.getElementById("register");
 const meatMachineImgRef = document.getElementById("meatMachine");
+let kills = 0;
 const meatMachine = new Interactable(meatMachineImgRef, 100, 450, 50, 50, 0, function(){
-
+    const dragged = customers.find(c => c.dragging && c.dead);
+    if(dragged){
+        dragged.dragging = false; 
+        kills++;
+        dialogBox.showDialog("Body processed! Total kills: " + kills);
+        customers.splice(customers.indexOf(dragged), 1);
+    }
 });
 interactables.push(meatMachine);
 const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(){
@@ -494,6 +501,7 @@ function render(){
 
     ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
     ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
+    ctx.fillText("Kills: " + kills, 10, 180);
     if(currentOrder){
         ctx.fillText("Order: ", 10, 400);
         for (let i = 0; i < currentOrder.length; i++) {
