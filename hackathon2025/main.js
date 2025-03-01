@@ -1,15 +1,12 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// Update canvas dimensions to viewport dimensions
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+window.resizeTo(1000, 750);
+canvas.width = 1000;
+canvas.height = 750;
 
-// Add listener to update canvas size on window resize
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
+
+
 
 const logoImgRef = document.getElementById("logo");
 const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
@@ -35,10 +32,19 @@ document.addEventListener('mousemove', (event) =>
 const logo = new Image(logoImgRef,50,50,50,50,0)
 
 const mapWalls = [
+    // Exterior walls
     new Rect(0,0,canvas.width,10,"red"),
     new Rect(0,0,10,canvas.height,"red"),
     new Rect(0,canvas.height-10,canvas.width,10,"red"),
-    new Rect(canvas.width-10,0,10,canvas.height,"red")
+    new Rect(canvas.width-10,0,10,canvas.height,"red"),
+    // Barrier Walls
+    // bathroom wall
+    new Image(document.getElementById("wall"), 200, 450, 550, 50, 0),
+    // Counter
+    new Image(document.getElementById("counter"), 200, 100, 50, 150 , 0),
+    // kitchen-lobby wall
+    new Image(document.getElementById("wall"), 200, 250, 50, 1000, 0),
+    
 ];
 
 const tables = [
@@ -57,8 +63,9 @@ const inventory = [];
 
 let hasTray = false;
 let finishedOrder = false;
+const registerImgRef = document.getElementById("register");
 
-const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
         return;
@@ -105,7 +112,7 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
 });
 interactables.push(register);
 
-const foodDispenser = new Interactable(logoImgRef, 300, 300, 50, 50, 0, function(){
+const foodDispenser = new Interactable(logoImgRef, 0, 150, 50, 50, Math.PI / 2, function(){
     if(foodToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Food",
@@ -123,7 +130,7 @@ const foodDispenser = new Interactable(logoImgRef, 300, 300, 50, 50, 0, function
 });
 interactables.push(foodDispenser);
 
-const drinkDispenser = new Interactable(logoImgRef, 400, 300, 50, 50, 0, function(){
+const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
     if(drinksToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Drink",
@@ -141,7 +148,7 @@ const drinkDispenser = new Interactable(logoImgRef, 400, 300, 50, 50, 0, functio
 });
 interactables.push(drinkDispenser);
 
-const iceCreamDispenser = new Interactable(logoImgRef, 500, 300, 50, 50, 0, function(){
+const iceCreamDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
     if(iceCreamToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Ice Cream",
@@ -159,7 +166,7 @@ const iceCreamDispenser = new Interactable(logoImgRef, 500, 300, 50, 50, 0, func
 });
 interactables.push(iceCreamDispenser);
 
-const trays = new Interactable(logoImgRef, 600, 300, 50, 50, 0, function(){
+const trays = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
     if(finishedOrder){
         hasTray = true;
     }
@@ -272,12 +279,15 @@ function render(){
         nearestInteractable = null;
         for (const interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
-            if (distance < 50) {
+            console.log(distance);
+            if (distance < 75) {
+                console.log(interactable);
                 interactable.interact();
                 break;
             }
         }
     }
+   
     
     if(time < 17*60){
         time += (renderRate / 1000) * timeScale;
