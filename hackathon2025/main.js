@@ -54,8 +54,14 @@ const mapWalls = [
     new Rect(canvas.width-10,0,10,canvas.height,"red")
 ];
 
+const tables = [
+    new Table("double", 300, 100),
+];
+
 const interactables = [];
 let readyCustomer;
+const customerSpeed = 1;
+
 const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
@@ -72,9 +78,24 @@ const register = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
         }
         orderString += ".";
         dialogBox.showDialog(orderString);
-        readyCustomer.hasOrdered = true;
         currentOrder = readyCustomer.order;
+        readyCustomer.hasOrdered = true;
+        
+        for (const table of tables) {
+            for (const chair of table.chairs) {
+                if (!chair.customer) {
+                    const distanceToChair = Math.sqrt((readyCustomer.img.x - chair.img.x)**2 + (readyCustomer.img.y - chair.img.y)**2);
+                    chair.customer = readyCustomer;
+                    readyCustomer.chair = chair;
+                    readyCustomer.img.vY = ((chair.img.y - readyCustomer.img.y) / distanceToChair) * customerSpeed;
+                    readyCustomer.img.vX = ((chair.img.x - readyCustomer.img.x) / distanceToChair) * customerSpeed;
+                    
+                    break;
+                }
+            }
+        }
         readyCustomer = null;
+        
     }
 });
 interactables.push(register);
@@ -82,19 +103,22 @@ interactables.push(register);
 const collisionBuffer = 5;
 
 const playerSpeed = 5;
-const customerSpeed = 1;
 const customerMinSpawnTime = 1;
 const customerMaxSpawnTime = 2;
+
+const hourlyWage = 10;
+const timeScale = 4;
+let money = 0;
+let time = 9*60; // start at 9:00 AM
 
 const inventory = [];
 let currentOrder;
 
 const customers = [];
 
-
 var nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
-var timer = 0;
 var fadeAlpha = 0; // added for kill fade animation
+var customerSpawnTimer = 0;
 
 // Add variables to handle walking animation
 let walkFrameCounter = 0;
@@ -185,12 +209,12 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
-    if(customers.length < 10 && (timer * renderRate) === nextSpawnTime * 1000){
-        // Instantiate Customer with new parameters and set vertical velocity
-        const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
+
+    if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
+        const newCustomer = new Customer(customerImgRef, register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
-        timer = 0;
+        customerSpawnTimer = 0;
         nextSpawnTime = Math.floor(Math.random() * customerMaxSpawnTime) + customerMinSpawnTime;
     }
 
@@ -198,7 +222,7 @@ function render(){
     if (input[69] ) {
         input[69] = false;
         nearestInteractable = null;
-        for (interactable of interactables) {
+        for (const interactable of interactables) {
             const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
             if (distance < 50) {
                 interactable.interact();
@@ -207,6 +231,26 @@ function render(){
         }
     }
     
+    if(time < 17*60){
+        time += (renderRate / 1000) * timeScale;
+        money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    }
+    
+    ctx.font = "50px Arial";
+    ctx.fillStyle = "red";
+    let ampm = "AM";
+    let hour = Math.floor(time / 60);
+    if(hour >= 12){
+        ampm = "PM";
+        hour -= 12;
+        if(hour == 0){
+            hour = 12;
+        }
+    }
+    let minute = Math.floor(time % 60);
+
+    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
+    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
 
     logo.update();
     for (const wall of mapWalls) {
@@ -216,7 +260,14 @@ function render(){
     let hungryCustomers=0;
     // Update order logic to ignore dead customers
     for (const customer of customers) {
-        // Only non-dead customers join the order line
+        if (customer.chair) {
+            const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
+            if (distanceToChair <= 10) {
+                customer.img.vX = 0;
+                customer.img.vY = 0;
+                customer.hasOrdered=true;
+            }
+        }
         if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
                 customer.img.vY = 0;
@@ -244,6 +295,7 @@ function render(){
     for (const interactable of interactables) {
         interactable.update();
     }
+
     
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
     // Modified kill mechanic section to skip dead customers
@@ -326,6 +378,16 @@ function render(){
     }
     
     timer++;
+
+    for (const table of tables) {
+        for (const chair of table.chairs) {
+            chair.update();
+        }
+        table.update();
+    }
+
+    customerSpawnTimer++;
+
     
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
@@ -419,6 +481,60 @@ function Rect(x, y, w, h, color){
         ctx.fillRect(this.x, this.y, this.w, this.h);
     }
 }
+function Chair(img, x, y) {
+    this.img = img;
+    this.x = x;
+    this.y = y;
+    this.w = 30;
+    this.h = 30;
+    this.customer = null;
+    
+    // Set the image position to match the chair position
+    this.img.x = x;
+    this.img.y = y;
+    
+    this.update = function(){
+        this.img.update();
+    }
+}
+function Table(type, x, y) {
+
+    if (type === "double")
+    {
+        this.tableImg = new Image(document.getElementById("doubleTable"), x, y, 100, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y -30),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + -30),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 50)
+        ]
+    }
+    else if (type==="booth")
+    {
+        this.tableImg = new Image(document.getElementById("boothTable"), x, y, 50, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 10),
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 30),
+        ]
+    }
+    else { // "single"
+        this.tableImg = new Image(document.getElementById("table"), x, y, 50, 50, 0);
+        this.chairs = [
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 10),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 30, y + 10),
+        ]
+    }
+    
+
+    this.x = x;
+    this.y = y;
+    this.w = 50;
+    this.h = 50;
+    
+    this.update = function(){
+        this.tableImg.update();
+    }
+}
 
 function Image(ref, x, y, w, h, angle){
     this.x = x;
@@ -491,6 +607,7 @@ function Customer(x, y, w, h){
     for (let i = 0; i <= Math.floor(Math.random() * 5); i++ ){
         this.order.push(menu[Math.floor(Math.random() * menu.length)]);
     }
+
     this.walkFrameCounter = 0;
     this.useWalkingFrame1 = true;
     this.dead = false;
@@ -498,6 +615,9 @@ function Customer(x, y, w, h){
     this.dragOffsetX = 0;  // new offset property
     this.dragOffsetY = 0;  // new offset property
     
+
+    this.chair = null;
+
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
@@ -553,6 +673,23 @@ function DialogBox() {
     this.queue = [];
     this.typeSpeed = 2; // characters per frame
     this.margin = 20;
+    
+    this.isChoice = false;
+    this.options = [];
+    this.selectedOption = 0;
+    this.choiceCallback = null;
+    
+    // New: Show a choice dialog with prompt text, array of options, and a callback
+    this.showChoiceDialog = function(promptText, options, callback) {
+        this.isActive = true;
+        this.isChoice = true;
+        this.fullText = promptText;
+        this.text = "";
+        this.charIndex = 0;
+        this.options = options;
+        this.selectedOption = 0;
+        this.choiceCallback = callback;
+    }
     
     this.showDialog = function(text) {
         if (this.isActive) {
@@ -616,10 +753,47 @@ function DialogBox() {
         if (this.charIndex >= this.fullText.length) {
             ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
         }
+
+        // If it's a choice dialog, draw the options and handle arrow key input
+        if (this.isChoice) {
+            // Handle up/down arrow key input to update selectedOption
+            if (input[38]) { // up arrow
+                if (this.selectedOption > 0) { this.selectedOption--; }
+                input[38] = false;
+            }
+            if (input[40]) { // down arrow
+                if (this.selectedOption < this.options.length - 1) { this.selectedOption++; }
+                input[40] = false;
+            }
+            
+            // Render each option
+            for (let i = 0; i < this.options.length; i++) {
+                if (i === this.selectedOption) {
+                    ctx.fillStyle = "yellow";
+                } else {
+                    ctx.fillStyle = "white";
+                }
+                ctx.fillText(this.options[i], this.margin + 20, lineY + i * lineHeight);
+            }
+        } else {
+            // Show continue indicator when text is complete
+            if (this.charIndex >= this.fullText.length) {
+                ctx.fillText("▼", canvas.width - this.margin - 40, canvas.height - this.margin - 20);
+            }
+        }
     }
 
     this.advance = function() {
         //console.log("dialogBox.advance() called"); // debug log
+        if (this.isChoice) {
+            // When in choice mode, space selects the currently highlighted option
+            if (this.choiceCallback) { 
+                this.choiceCallback(this.options[this.selectedOption]);
+            }
+            this.isActive = false;
+            this.isChoice = false;
+            return;
+        }
         if (this.charIndex < this.fullText.length) {
             // If still typing, complete the current text
             this.charIndex = this.fullText.length;
@@ -639,8 +813,8 @@ function DialogBox() {
 const dialogBox = new DialogBox();
 
 // Update test dialog messages with instructions
-dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
-dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
+//dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
+//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
 
@@ -720,6 +894,7 @@ function drawUrbanLighting(){
     ctx.restore();
 }
 
+
 // New helper function to calculate minimal angle difference
 function angleDifference(a, b) {
     let diff = a - b;
@@ -727,3 +902,4 @@ function angleDifference(a, b) {
     while(diff > Math.PI) diff -= 2*Math.PI;
     return diff;
 }
+
