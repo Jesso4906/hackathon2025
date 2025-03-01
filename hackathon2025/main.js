@@ -30,46 +30,45 @@ const mapWalls = [
     new Rect(canvas.width-10,0,10,canvas.height,"red")
 ];
 
-
-function getCollision(rect1, rect2){ 
+function getCollision(rect1, rect2, buffer){ 
     //                          UP      DOWN  LEFT  RIGHT
     let collisionDetections = [false, false, false, false];
     
     // First check if there's any collision at all using AABB
-    if (rect1.x < rect2.x + rect2.w &&
-        rect1.x + rect1.w > rect2.x &&
-        rect1.y < rect2.y + rect2.h &&
-        rect1.y + rect1.h > rect2.y) {
+    if (rect1.x < rect2.x + rect2.w + buffer &&
+        rect1.x + rect1.w > rect2.x - buffer &&
+        rect1.y < rect2.y + rect2.h + buffer &&
+        rect1.y + rect1.h > rect2.y - buffer) {
         
         // There is a collision, now determine which sides
         
         // UP collision - top edge of rect1 is inside rect2
-        if (rect1.y >= rect2.y && 
-            rect1.y <= rect2.y + rect2.h &&
+        if (rect1.y > rect2.y - buffer && 
+            rect1.y < rect2.y + rect2.h + buffer &&
             rect1.x + rect1.w > rect2.x && 
             rect1.x < rect2.x + rect2.w) {
             collisionDetections[0] = true;
         }
         
         // DOWN collision - bottom edge of rect1 is inside rect2
-        if (rect1.y + rect1.h >= rect2.y && 
-            rect1.y + rect1.h <= rect2.y + rect2.h &&
+        if (rect1.y + rect1.h > rect2.y - buffer && 
+            rect1.y + rect1.h < rect2.y + rect2.h + buffer &&
             rect1.x + rect1.w > rect2.x && 
             rect1.x < rect2.x + rect2.w) {
             collisionDetections[1] = true;
         }
         
         // LEFT collision - left edge of rect1 is inside rect2
-        if (rect1.x >= rect2.x && 
-            rect1.x <= rect2.x + rect2.w &&
+        if (rect1.x > rect2.x - buffer && 
+            rect1.x < rect2.x + rect2.w + buffer &&
             rect1.y + rect1.h > rect2.y && 
             rect1.y < rect2.y + rect2.h) {
             collisionDetections[2] = true;
         }
         
         // RIGHT collision - right edge of rect1 is inside rect2
-        if (rect1.x + rect1.w >= rect2.x && 
-            rect1.x + rect1.w <= rect2.x + rect2.w &&
+        if (rect1.x + rect1.w > rect2.x - buffer && 
+            rect1.x + rect1.w < rect2.x + rect2.w + buffer &&
             rect1.y + rect1.h > rect2.y && 
             rect1.y < rect2.y + rect2.h) {
             collisionDetections[3] = true;
@@ -79,6 +78,8 @@ function getCollision(rect1, rect2){
     return collisionDetections;
 }
 
+const collisionBuffer = 5;
+const playerSpeed = 5;
 
 function render(){
     ctx.fillStyle = "black";
@@ -90,7 +91,7 @@ function render(){
     let downBlocked = false;
 
     for (const wall of mapWalls) {
-        const collisionData = getCollision(logo, wall);
+        const collisionData = getCollision(logo, wall, collisionBuffer);
         if (collisionData[0]) {
             upBlocked = true;
         }
@@ -105,18 +106,17 @@ function render(){
         }
     }
     
-    
     if(input[87] && !upBlocked){ // w
-        logo.y--;
+        logo.y -= playerSpeed;
     }
     if(input[65] && !leftBlocked){ // a
-        logo.x--;
+        logo.x -= playerSpeed;
     }
     if(input[83]  && !downBlocked){ // s
-        logo.y++;
+        logo.y += playerSpeed;
     }
     if(input[68]  && !rightBlocked){ // d
-        logo.x++;
+        logo.x += playerSpeed;
     }
 
     logo.update();
