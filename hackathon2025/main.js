@@ -418,7 +418,14 @@ function render(){
             for (let i = 0; i < customers.length; i++){
                 if(customers[i].targeted && !customers[i].dead){
                     customers[i].dead = true;
-                    customers[i].img.vY = 0;  // freeze movement
+                    // Check if this customer's order is the current order
+                    if(customers[i].order === currentOrder) {
+                        currentOrder = null;
+                        foodToBeDispensed.length = 0;
+                        drinksToBeDispensed.length = 0;
+                        iceCreamToBeDispensed.length = 0;
+                        finishedOrder = false;
+                    }
                     executed = true;
                     break;
                 }
