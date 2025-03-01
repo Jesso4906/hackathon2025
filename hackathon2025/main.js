@@ -46,9 +46,16 @@ function render(){
     if(input[68]){ // d
         logo.x++;
     }
+    
+    // Add space bar check (key code 32)
+    if(input[32] && dialogBox.isActive){
+        //logo.x++;
+        dialogBox.advance();
+        input[32] = false; // Reset to prevent multiple advances
+    }
 
     logo.update();
-    dialogBox.update(); // Add this line
+    dialogBox.update();
 }
 var updateLoop = window.setInterval(render, renderRate);
 
@@ -158,13 +165,16 @@ function DialogBox() {
     }
 
     this.advance = function() {
+        //console.log("dialogBox.advance() called"); // debug log
         if (this.charIndex < this.fullText.length) {
             // If still typing, complete the current text
             this.charIndex = this.fullText.length;
             this.text = this.fullText;
         } else if (this.queue.length > 0) {
-            // Show next dialog in queue
-            this.showDialog(this.queue.shift());
+            // Instead of calling showDialog, directly replace with next dialog
+            this.fullText = this.queue.shift();
+            this.text = "";
+            this.charIndex = 0;
         } else {
             // Close dialog
             this.isActive = false;
@@ -174,12 +184,8 @@ function DialogBox() {
 
 const dialogBox = new DialogBox();
 
-// Add test dialog messages
-dialogBox.showDialog("Hello! This is the first message.");
+// Update test dialog messages with instructions
+dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
 dialogBox.showDialog("This will show up after the first one!");
 
-document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space' && dialogBox.isActive) {
-        dialogBox.advance();
-    }
-});
+// Remove the separate space bar event listener since we're using the input array now

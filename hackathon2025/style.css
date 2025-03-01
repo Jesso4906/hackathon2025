@@ -1,16 +1,8 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
+    width: 1000px;
+    height: 1000px;
+    box-sizing:border-box;
     overflow: hidden;
-}
-
-/* Added to fill the viewport */
-html, body {
-    width: 100%;
-    height: 100%;
-}
-
-canvas {
-    display: block;
 }
