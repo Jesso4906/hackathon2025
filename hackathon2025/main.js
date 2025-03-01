@@ -57,6 +57,10 @@ const mapWalls = [
 
 const tables = [
     new Table("double", 300, 100),
+    new Table("double", 300, 300),
+    new Table("double", 600, 100),
+    new Table("double", 600, 300),
+
 ];
 
 const interactables = [];
@@ -745,7 +749,6 @@ const menu = [
     "Nuggets",
     "Soda",
     "Diet Soda",
-    "Milkshake"
 ]
 
 // Update Customer constructor to implement walking animation, kill images, and dead state
