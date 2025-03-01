@@ -11,7 +11,6 @@ canvas.height = 750;
 const logoImgRef = document.getElementById("logo");
 const walking1ImgRef = document.getElementById("walking1"); // added walking image reference
 const walking2ImgRef = document.getElementById("walking2"); // added walking image reference
-const customerImgRef = document.getElementById("coin");
 const lobbyFloor = document.getElementById("floor");
 
 // Add new customer image references
@@ -54,9 +53,9 @@ const mapWalls = [
     // bathroom wall
     new Image(document.getElementById("wall"), 200, 450, 550, 50, 0),
     // Counter
-    new Image(document.getElementById("counter"), 200, 100, 50, 150 , 0),
+    new Image(document.getElementById("counter"), 200, 100, 50, 200 , 0),
     // kitchen-lobby wall
-    new Image(document.getElementById("wall"), 200, 250, 50, 1000, 0),
+    new Image(document.getElementById("wall"), 200, 275, 50, 1000, 0),
     
 ];
 
@@ -77,7 +76,11 @@ const inventory = [];
 let hasTray = false;
 let finishedOrder = false;
 const registerImgRef = document.getElementById("register");
+const meatMachineImgRef = document.getElementById("meatMachine");
+const meatMachine = new Interactable(meatMachineImgRef, 100, 450, 50, 50, 0, function(){
 
+});
+interactables.push(meatMachine);
 const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
@@ -124,7 +127,8 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
 });
 interactables.push(register);
 
-const foodDispenser = new Interactable(logoImgRef, 0, 150, 50, 50, Math.PI / 2, function(){
+const foodDispenserImg = document.getElementById("foodDispenser");
+const foodDispenser = new Interactable(foodDispenserImg, 0, 150, 50, 50, Math.PI / 2, function(){
     if(foodToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Food",
@@ -142,7 +146,8 @@ const foodDispenser = new Interactable(logoImgRef, 0, 150, 50, 50, Math.PI / 2, 
 });
 interactables.push(foodDispenser);
 
-const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2, function(){
+const drinkDispenserImg = document.getElementById("drinkDispenser");
+const drinkDispenser = new Interactable(drinkDispenserImg, 0, 250, 50, 50, Math.PI / 2, function(){
     if(drinksToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Drink",
@@ -160,7 +165,8 @@ const drinkDispenser = new Interactable(logoImgRef, 0, 250, 50, 50, Math.PI / 2,
 });
 interactables.push(drinkDispenser);
 
-const iceCreamDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI / 2, function(){
+const iceCreamDispenserImg = document.getElementById("icecreamMachine");
+const iceCreamDispenser = new Interactable(iceCreamDispenserImg, 0, 200, 50, 50, Math.PI / 2, function(){
     if(iceCreamToBeDispensed.length > 0){
         dialogBox.showChoiceDialog(
             "Select Ice Cream",
@@ -178,7 +184,8 @@ const iceCreamDispenser = new Interactable(logoImgRef, 0, 200, 50, 50, Math.PI /
 });
 interactables.push(iceCreamDispenser);
 
-const trays = new Interactable(logoImgRef, 200, 200, 50, 50, 0, function(){
+const traysImg = document.getElementById("trays");
+const trays = new Interactable(traysImg, 200, 250, 25, 25, 0, function(){
     if(finishedOrder){
         hasTray = true;
     }
