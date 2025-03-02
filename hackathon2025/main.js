@@ -508,7 +508,7 @@ function render(){
                  for (let i = 0; i < customers.length; i++){
                      if(customers[i].dead && !customers[i].dragging){
                          let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
-                         let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                         let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
                          let distance = Math.sqrt(dx*dx+dy*dy);
                          if(distance < 60){ // threshold for dragging
                              customers[i].dragging = true;
@@ -538,37 +538,65 @@ function render(){
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
 
-    ctx.font = "50px Arial";
-    ctx.fillStyle = "red";
+    // Draw stylized HUD
+    const margin = 20;
+    const rightAlign = canvas.width - margin;
+    ctx.save();
+    
+    // Set up the general text style
+    ctx.textAlign = "right";
+    ctx.shadowBlur = 15;
+    ctx.lineWidth = 2;
+    
+    // Time display with glowing effect
     let ampm = "AM";
     let hour = Math.floor(time / 60);
     if(hour >= 12){
         ampm = "PM";
         hour -= 12;
-        if(hour == 0){
-            hour = 12;
-        }
+        if(hour == 0) hour = 12;
     }
     let minute = Math.floor(time % 60);
-
-    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
-    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
-    ctx.fillText("Kills: " + kills, 10, 180);
-    if(currentOrder){
-        ctx.fillText("Order: ", 10, 400);
-        for (let i = 0; i < currentOrder.length; i++) {
-            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
-                ctx.fillStyle = "green";
-            }
-            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
-            ctx.fillStyle = "red";
-        }
-    }
-
-    if(hasTray){
-        ctx.fillText("Tray", 250, 400);
+    
+    // Draw time with red glow
+    ctx.font = "bold 38px monospace";
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fillStyle = "#FF3333";
+    const timeText = hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm;
+    ctx.strokeText(timeText, rightAlign, margin + 35);
+    ctx.fillText(timeText, rightAlign, margin + 35);
+    
+    // Money display with green matrix-style glow
+    ctx.font = "bold 32px monospace";
+    ctx.shadowColor = 'rgba(0, 255, 0, 0.8)';
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillStyle = "#33FF33";
+    const moneyText = "$" + Math.round(money * 100) / 100;
+    ctx.strokeText(moneyText, rightAlign, margin + 75);
+    ctx.fillText(moneyText, rightAlign, margin + 75);
+    
+    // Kill counter with blood-red glow effect
+    ctx.font = "bold 35px monospace";
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+    ctx.strokeStyle = 'rgba(180, 0, 0, 0.8)';
+    ctx.fillStyle = "#FF0000";
+    const killText = "☠ " + kills;
+    ctx.strokeText(killText, rightAlign, margin + 115);
+    ctx.fillText(killText, rightAlign, margin + 115);
+    
+    // Add subtle scanline effect over the HUD area
+    const scanlineHeight = 2;
+    const hudWidth = 200;
+    const hudHeight = 120;
+    ctx.globalAlpha = 0.1;
+    for(let y = margin; y < margin + hudHeight; y += scanlineHeight * 2) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(canvas.width - hudWidth - margin, y, hudWidth, scanlineHeight);
     }
     
+    ctx.restore();
+
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
     
