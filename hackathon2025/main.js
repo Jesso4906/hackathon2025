@@ -396,7 +396,7 @@ function render(){
     }
 
     let hungryCustomers=0;
-    // Update order logic to ignore dead customers
+    // Update customers but don't draw them yet
     for (const customer of customers) {
         if (customer.chair) {
             const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
@@ -416,6 +416,21 @@ function render(){
             }
             hungryCustomers++;
         }
+        // Update position without drawing
+        customer.img.x += customer.img.vX;
+        customer.img.y += customer.img.vY;
+    }
+
+    // Draw tables and chairs first
+    for (const table of tables) {
+        for (const chair of table.chairs) {
+            chair.update();
+        }
+        table.update();
+    }
+
+    // Now draw all customers on top
+    for (const customer of customers) {
         customer.update();
     }
 
@@ -430,12 +445,6 @@ function render(){
 
     for (const interactable of interactables) {
         interactable.update();
-    }
-    for (const table of tables) {
-        for (const chair of table.chairs) {
-            chair.update();
-        }
-        table.update();
     }
     
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
