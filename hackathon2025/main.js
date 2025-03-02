@@ -498,6 +498,8 @@ function render(){
                         finishedOrder = false;
                     }
                     executed = true;
+                    // Fix: update readyCustomer so that the next available customer is selected
+                    readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
                     break;
                 }
             }
