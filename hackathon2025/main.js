@@ -349,6 +349,37 @@ function render(){
                 currentOrder = null;
                 hasTray = false;
                 finishedOrder = false;
+                // Clear order progress from inventory and dispensing arrays
+                inventory.length = 0;
+                foodToBeDispensed.length = 0;
+                drinksToBeDispensed.length = 0;
+                iceCreamToBeDispensed.length = 0;
+            }
+        }
+    }
+
+    // Interaction Detection "e"
+    if (input[69] ) {
+        input[69] = false;
+        nearestInteractable = null;
+        for (const interactable of interactables) {
+            const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
+            if (distance < 75) {
+                console.log(interactable);
+                interactable.interact();
+                break;
+            }
+        }
+
+        if(currentCustomer && hasTray){
+            const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
+            if (distance < 75) {
+                dialogBox.showDialog("Yum Yum");
+                currentCustomer.hasEaten = true;
+                currentCustomer.img.vY = -customerSpeed;
+                currentOrder = null;
+                hasTray = false;
+                finishedOrder = false;
             }
         }
     }
