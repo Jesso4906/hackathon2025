@@ -293,6 +293,16 @@ function render(){
         }
     }
     
+    // Add collisions for machine interactables (foodDispenser, drinkDispenser, iceCreamDispenser, meatMachine)
+    const machines = [foodDispenser, drinkDispenser, iceCreamDispenser, meatMachine];
+    for (const machine of machines) {
+        const collData = getCollision(logo, machine.img, collisionBuffer);
+        if(collData[0]) { upBlocked = true; }
+        if(collData[1]) { downBlocked = true; }
+        if(collData[2]) { leftBlocked = true; }
+        if(collData[3]) { rightBlocked = true; }
+    }
+    
     // Determine if the player (logo) is moving based on WASD keys
     const isMoving = input[87] || input[65] || input[83] || input[68];
     
