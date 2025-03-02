@@ -98,9 +98,16 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         const threshold = 50;
         if (Math.abs(readyCustomer.img.x - register.img.x) > threshold ||
             Math.abs(readyCustomer.img.y - register.img.y) > threshold) {
-            //dialogBox.showDialog("Customer must be at the register to order");
             return;
         }
+        
+        // Clear any leftover state from previous orders
+        hasTray = false;
+        finishedOrder = false;
+        inventory.length = 0;
+        foodToBeDispensed.length = 0;
+        drinksToBeDispensed.length = 0;
+        iceCreamToBeDispensed.length = 0;
         
         dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
@@ -202,9 +209,15 @@ interactables.push(iceCreamDispenser);
 
 const traysImg = document.getElementById("trays");
 const trays = new Interactable(traysImg, 200, 250, 25, 25, 0, function(){
-    if(finishedOrder){
-        hasTray = true;
+    if(!currentOrder) {
+        dialogBox.showDialog("I need an order first!");
+        return;
     }
+    if(!finishedOrder) {
+        dialogBox.showDialog("I need to finish preparing the order first!");
+        return;
+    }
+    hasTray = true;
 });
 interactables.push(trays);
 
@@ -326,8 +339,7 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
-    if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
-        // Instantiate Customer with new parameters and set vertical velocity
+    if(customers.length < 10 && (customerSpawnTimer * renderRate) >= nextSpawnTime * 1000){
         const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
@@ -336,61 +348,38 @@ function render(){
     }
 
     // Interaction Detection "e"
-    if (input[69] ) {
+    if(input[69]) {
         input[69] = false;
         nearestInteractable = null;
         for (const interactable of interactables) {
-            const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
+            const distance = Math.sqrt( (logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2 );
             if (distance < 75) {
-                console.log(interactable);
                 interactable.interact();
                 break;
             }
         }
-
-        if(currentCustomer && hasTray){
-            const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
+        
+        // If near a customer holding a tray, complete the service
+        if(currentCustomer && hasTray) {
+            const distance = Math.sqrt( (logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2 );
             if (distance < 75) {
                 dialogBox.showDialog("Yum Yum");
                 currentCustomer.hasEaten = true;
                 currentCustomer.img.vY = -customerSpeed;
+                // Reset order state for new customers
                 currentOrder = null;
                 hasTray = false;
                 finishedOrder = false;
-                // Clear order progress from inventory and dispensing arrays
                 inventory.length = 0;
                 foodToBeDispensed.length = 0;
                 drinksToBeDispensed.length = 0;
                 iceCreamToBeDispensed.length = 0;
+                currentCustomer = null;
+                readyCustomer = null; // ensure next candidate can be picked up
             }
         }
     }
 
-    // Interaction Detection "e"
-    if (input[69] ) {
-        input[69] = false;
-        nearestInteractable = null;
-        for (const interactable of interactables) {
-            const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
-            if (distance < 75) {
-                console.log(interactable);
-                interactable.interact();
-                break;
-            }
-        }
-
-        if(currentCustomer && hasTray){
-            const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
-            if (distance < 75) {
-                dialogBox.showDialog("Yum Yum");
-                currentCustomer.hasEaten = true;
-                currentCustomer.img.vY = -customerSpeed;
-                currentOrder = null;
-                hasTray = false;
-                finishedOrder = false;
-            }
-        }
-    }
     if(time < 17*60){
         time += (renderRate / 1000) * timeScale;
         money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
@@ -696,6 +685,108 @@ function render(){
         if(customers[i].hasEaten && (customers[i].img.y + customers[i].img.h < 0)){
             customers.splice(i, 1);
         }
+    }
+
+    // Replace the order drawing section (around where it checks if(currentOrder)) with:
+    
+    // Draw order display with cyberpunk/urban style
+    if(currentOrder){
+        ctx.save();
+        
+        const orderX = 10;
+        const orderY = 200;
+        const itemSpacing = 40;
+        
+        // Draw order header
+        ctx.font = "bold 28px monospace";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#FF0000";
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "rgba(255, 0, 0, 0.8)";
+        
+        const orderTitle = "CURRENT ORDER:";
+        ctx.strokeText(orderTitle, orderX, orderY);
+        ctx.fillText(orderTitle, orderX, orderY);
+        
+        // Create a map to track how many of each item we've collected vs needed
+        const itemCounts = {};
+        const collectedCounts = {};
+        
+        // Count required items
+        currentOrder.forEach(item => {
+            itemCounts[item] = (itemCounts[item] || 0) + 1;
+            collectedCounts[item] = 0;
+        });
+        
+        // Count collected items
+        inventory.forEach(item => {
+            if (itemCounts[item] && collectedCounts[item] < itemCounts[item]) {
+                collectedCounts[item]++;
+            }
+        });
+        
+        // Draw each order item
+        let itemIndex = 0;
+        currentOrder.forEach((item, index) => {
+            const y = orderY + ((index + 1) * itemSpacing);
+            
+            // Check if this specific instance of the item is collected
+            const itemCollectedCount = collectedCounts[item];
+            const itemNeededCount = itemCounts[item];
+            const isThisItemCollected = itemIndex < itemCollectedCount;
+            
+            // Create glitch effect for uncollected items
+            if(!isThisItemCollected) {
+                ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.01) * 0.2;
+            }
+            
+            // Set colors based on collection status
+            if(isThisItemCollected) {
+                ctx.fillStyle = "#00FF00";
+                ctx.shadowColor = "rgba(0, 255, 0, 0.8)";
+            } else {
+                ctx.fillStyle = "#FF3333";
+                ctx.shadowColor = "rgba(255, 0, 0, 0.8)";
+            }
+            
+            // Show count for multiple items
+            const countText = itemCounts[item] > 1 ? ` (${collectedCounts[item]}/${itemCounts[item]})` : '';
+            
+            // Draw item text
+            ctx.strokeText("- " + item + countText, orderX, y);
+            ctx.fillText("- " + item + countText, orderX, y);
+            
+            // Draw collection indicator
+            if(isThisItemCollected) {
+                ctx.fillText(" ✓", orderX + 200, y);
+            }
+            
+            // Count this instance of the item
+            if(item === currentOrder[index]) {
+                itemIndex = (itemIndex + 1) % itemCounts[item];
+            }
+            
+            ctx.globalAlpha = 1;
+        });
+        
+        // Draw tray status
+        if(hasTray) {
+            ctx.fillStyle = "#00FF00";
+            ctx.shadowColor = "rgba(0, 255, 0, 0.8)";
+            ctx.fillText("TRAY READY", orderX, orderY + ((currentOrder.length + 1) * itemSpacing));
+        }
+        
+        // Add scanline effect
+        ctx.globalAlpha = 0.1;
+        const orderHeight = (currentOrder.length + 2) * itemSpacing;
+        for(let y = orderY - 30; y < orderY + orderHeight; y += 3) {
+            ctx.fillStyle = "#000";
+            ctx.fillRect(orderX - 5, y, 250, 1);
+        }
+        
+        ctx.restore();
     }
 }
 
