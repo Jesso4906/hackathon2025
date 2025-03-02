@@ -1017,18 +1017,49 @@ function Customer(x, y, w, h){
     this.dragging = false; // flag for dragging
     // Keep dragOffset for initial offset (set on pickup)
     this.dragOffset = { x: 0, y: 0 };
+    // Add physics properties for rotation
+    this.rotation = 0;
+    this.angularVelocity = 0;
+    this.lastDx = 0;
+    this.lastDy = 0;
     
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
-                // Simulate a spring-damped rope effect by gradually moving towards the desired position.
                 let desiredX = logo.x + this.dragOffset.x;
                 let desiredY = logo.y + this.dragOffset.y;
-                // Adjust these constants to tweak responsiveness and damping.
-                this.img.x += (desiredX - this.img.x) * 0.15;
-                this.img.y += (desiredY - this.img.y) * 0.15;
+                
+                const dx = desiredX - this.img.x;
+                const dy = desiredY - this.img.y;
+                
+                // Reduced rotation response
+                if(Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                    const deltaChange = Math.abs((dx - this.lastDx) + (dy - this.lastDy));
+                    // Reduced multiplier from 0.01 to 0.003
+                    this.angularVelocity += deltaChange * 0.003;
+                    // Add maximum angular velocity cap
+                    this.angularVelocity = Math.min(Math.max(this.angularVelocity, -0.1), 0.1);
+                }
+                
+                this.img.x += dx * 0.15;
+                this.img.y += dy * 0.15;
+                
+                this.rotation += this.angularVelocity;
+                // Increased damping from 0.95 to 0.9 for quicker stabilization
+                this.angularVelocity *= 0.9;
+                
+                this.lastDx = dx;
+                this.lastDy = dy;
+                
+                this.img.angle = this.rotation;
+            } else {
+                // Reset physics when dropped
+                this.angularVelocity = 0;
+                // Don't reset rotation to 0 when dropped, let it stay at current angle
+                this.img.angle = this.rotation;
             }
-            // Initialize blood properties on first death
+            
+            // Rest of dead body rendering...
             if(this.bloodAlpha === undefined) {
                 this.bloodAlpha = 1;
             }
