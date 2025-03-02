@@ -94,6 +94,21 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         return;
     }
     if (readyCustomer){
+        // Ensure the customer is at the register (within a threshold)
+        const threshold = 50;
+        if (Math.abs(readyCustomer.img.x - register.img.x) > threshold ||
+            Math.abs(readyCustomer.img.y - register.img.y) > threshold) {
+            return;
+        }
+        
+        // Clear any leftover state from previous orders
+        hasTray = false;
+        finishedOrder = false;
+        inventory.length = 0;
+        foodToBeDispensed.length = 0;
+        drinksToBeDispensed.length = 0;
+        iceCreamToBeDispensed.length = 0;
+        
         dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
         for (let i = 0; i < readyCustomer.order.length; i++) { 
@@ -194,9 +209,15 @@ interactables.push(iceCreamDispenser);
 
 const traysImg = document.getElementById("trays");
 const trays = new Interactable(traysImg, 200, 250, 25, 25, 0, function(){
-    if(finishedOrder){
-        hasTray = true;
+    if(!currentOrder) {
+        dialogBox.showDialog("I need an order first!");
+        return;
     }
+    if(!finishedOrder) {
+        dialogBox.showDialog("I need to finish preparing the order first!");
+        return;
+    }
+    hasTray = true;
 });
 interactables.push(trays);
 
@@ -272,6 +293,16 @@ function render(){
         }
     }
     
+    // Add collisions for machine interactables (foodDispenser, drinkDispenser, iceCreamDispenser, meatMachine)
+    const machines = [foodDispenser, drinkDispenser, iceCreamDispenser, meatMachine];
+    for (const machine of machines) {
+        const collData = getCollision(logo, machine.img, collisionBuffer);
+        if(collData[0]) { upBlocked = true; }
+        if(collData[1]) { downBlocked = true; }
+        if(collData[2]) { leftBlocked = true; }
+        if(collData[3]) { rightBlocked = true; }
+    }
+    
     // Determine if the player (logo) is moving based on WASD keys
     const isMoving = input[87] || input[65] || input[83] || input[68];
     
@@ -318,8 +349,7 @@ function render(){
         input[32] = false; // Reset to prevent multiple advances
     }
 
-    if(customers.length < 10 && (customerSpawnTimer * renderRate) === nextSpawnTime * 1000){
-        // Instantiate Customer with new parameters and set vertical velocity
+    if(customers.length < 10 && (customerSpawnTimer * renderRate) >= nextSpawnTime * 1000){
         const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
@@ -328,30 +358,43 @@ function render(){
     }
 
     // Interaction Detection "e"
-    if (input[69] ) {
+    if(input[69]) {
         input[69] = false;
         nearestInteractable = null;
         for (const interactable of interactables) {
-            const distance = Math.sqrt((logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2);
+            const distance = Math.sqrt( (logo.x - interactable.img.x)**2 + (logo.y - interactable.img.y)**2 );
             if (distance < 75) {
-                console.log(interactable);
                 interactable.interact();
                 break;
             }
         }
-
-        if(currentCustomer && hasTray){
+        
+        // If near a customer holding a tray, complete the service
+        if(currentCustomer && hasTray) {
             const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
             if (distance < 75) {
+                dialogBox.queue = [];
                 dialogBox.showDialog("Yum Yum");
                 currentCustomer.hasEaten = true;
+                // Release the customer's chair so new customers can take it
+                if(currentCustomer.chair) { 
+                    currentCustomer.chair.customer = null; 
+                }
                 currentCustomer.img.vY = -customerSpeed;
+                // Reset order state for new customers
                 currentOrder = null;
                 hasTray = false;
                 finishedOrder = false;
+                inventory.length = 0;
+                foodToBeDispensed.length = 0;
+                drinksToBeDispensed.length = 0;
+                iceCreamToBeDispensed.length = 0;
+                currentCustomer = null;
+                readyCustomer = null;
             }
         }
     }
+
     if(time < 17*60){
         time += (renderRate / 1000) * timeScale;
         money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
@@ -363,7 +406,7 @@ function render(){
     }
 
     let hungryCustomers=0;
-    // Update order logic to ignore dead customers
+    // Update customers but don't draw them yet
     for (const customer of customers) {
         if (customer.chair) {
             const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
@@ -383,6 +426,21 @@ function render(){
             }
             hungryCustomers++;
         }
+        // Update position without drawing
+        customer.img.x += customer.img.vX;
+        customer.img.y += customer.img.vY;
+    }
+
+    // Draw tables and chairs first
+    for (const table of tables) {
+        for (const chair of table.chairs) {
+            chair.update();
+        }
+        table.update();
+    }
+
+    // Now draw all customers on top
+    for (const customer of customers) {
         customer.update();
     }
 
@@ -397,12 +455,6 @@ function render(){
 
     for (const interactable of interactables) {
         interactable.update();
-    }
-    for (const table of tables) {
-        for (const chair of table.chairs) {
-            chair.update();
-        }
-        table.update();
     }
     
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
@@ -459,6 +511,8 @@ function render(){
                         finishedOrder = false;
                     }
                     executed = true;
+                    // Fix: update readyCustomer so that the next available customer is selected
+                    readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
                     break;
                 }
             }
@@ -467,7 +521,7 @@ function render(){
                  for (let i = 0; i < customers.length; i++){
                      if(customers[i].dead && !customers[i].dragging){
                          let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
-                         let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                         let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
                          let distance = Math.sqrt(dx*dx+dy*dy);
                          if(distance < 60){ // threshold for dragging
                              customers[i].dragging = true;
@@ -497,37 +551,65 @@ function render(){
     // New: Apply urban city lighting effect overlay
     drawUrbanLighting();
 
-    ctx.font = "50px Arial";
-    ctx.fillStyle = "red";
+    // Draw stylized HUD
+    const margin = 20;
+    const rightAlign = canvas.width - margin;
+    ctx.save();
+    
+    // Set up the general text style
+    ctx.textAlign = "right";
+    ctx.shadowBlur = 15;
+    ctx.lineWidth = 2;
+    
+    // Time display with glowing effect
     let ampm = "AM";
     let hour = Math.floor(time / 60);
     if(hour >= 12){
         ampm = "PM";
         hour -= 12;
-        if(hour == 0){
-            hour = 12;
-        }
+        if(hour == 0) hour = 12;
     }
     let minute = Math.floor(time % 60);
-
-    ctx.fillText(hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm, 10, 80);
-    ctx.fillText("$" + Math.round(money * 100) / 100, 10, 130);
-    ctx.fillText("Kills: " + kills, 10, 180);
-    if(currentOrder){
-        ctx.fillText("Order: ", 10, 400);
-        for (let i = 0; i < currentOrder.length; i++) {
-            if(inventory.findIndex(item => item === currentOrder[i]) > -1){
-                ctx.fillStyle = "green";
-            }
-            ctx.fillText(currentOrder[i], 10, 450 + i * 50);
-            ctx.fillStyle = "red";
-        }
-    }
-
-    if(hasTray){
-        ctx.fillText("Tray", 250, 400);
+    
+    // Draw time with red glow
+    ctx.font = "bold 38px monospace";
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fillStyle = "#FF3333";
+    const timeText = hour + ":" + (minute < 10 ? "0" + minute : minute) + ampm;
+    ctx.strokeText(timeText, rightAlign, margin + 35);
+    ctx.fillText(timeText, rightAlign, margin + 35);
+    
+    // Money display with green matrix-style glow
+    ctx.font = "bold 32px monospace";
+    ctx.shadowColor = 'rgba(0, 255, 0, 0.8)';
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillStyle = "#33FF33";
+    const moneyText = "$" + Math.round(money * 100) / 100;
+    ctx.strokeText(moneyText, rightAlign, margin + 75);
+    ctx.fillText(moneyText, rightAlign, margin + 75);
+    
+    // Kill counter with blood-red glow effect
+    ctx.font = "bold 35px monospace";
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+    ctx.strokeStyle = 'rgba(180, 0, 0, 0.8)';
+    ctx.fillStyle = "#FF0000";
+    const killText = "☠ " + kills;
+    ctx.strokeText(killText, rightAlign, margin + 115);
+    ctx.fillText(killText, rightAlign, margin + 115);
+    
+    // Add subtle scanline effect over the HUD area
+    const scanlineHeight = 2;
+    const hudWidth = 200;
+    const hudHeight = 120;
+    ctx.globalAlpha = 0.1;
+    for(let y = margin; y < margin + hudHeight; y += scanlineHeight * 2) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(canvas.width - hudWidth - margin, y, hudWidth, scanlineHeight);
     }
     
+    ctx.restore();
+
     // Draw the dialog box on top so that it always shows up
     dialogBox.update();
     
@@ -620,6 +702,80 @@ function render(){
     // Listen for R to restart
     if (failScreenActive && input[82]) {
         location.reload();
+    }
+
+    // Remove customers that have eaten and left through the top area
+    for (let i = customers.length - 1; i >= 0; i--){
+        if(customers[i].hasEaten && (customers[i].img.y + customers[i].img.h < 0)){
+            customers.splice(i, 1);
+        }
+    }
+
+    // Replace the order drawing section (around where it checks if(currentOrder)) with:
+    
+    // Draw order display with cyberpunk/urban style
+    if(currentOrder){
+        ctx.save();
+        
+        const orderX = 10;
+        const orderY = 200;
+        const itemSpacing = 40;
+        
+        // Draw order header
+        ctx.font = "bold 28px monospace";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#FF0000";
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "rgba(255, 0, 0, 0.8)";
+        
+        const orderTitle = "CURRENT ORDER:";
+        ctx.strokeText(orderTitle, orderX, orderY);
+        ctx.fillText(orderTitle, orderX, orderY);
+        
+        // Create maps to track counts
+        const itemCounts = {};
+        const collectedCounts = {};
+        currentOrder.forEach(item => {
+            itemCounts[item] = (itemCounts[item] || 0) + 1;
+            collectedCounts[item] = 0;
+        });
+        inventory.forEach(item => {
+            if(itemCounts[item] && collectedCounts[item] < itemCounts[item]){
+                collectedCounts[item]++;
+            }
+        });
+        
+        // Iterate over unique items
+        const uniqueItems = Object.keys(itemCounts);
+        uniqueItems.forEach((item, idx) => {
+             const y = orderY + ((idx + 1) * itemSpacing);
+             const isCollected = collectedCounts[item] >= itemCounts[item];
+             if(!isCollected){
+                  ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.01) * 0.2;
+             }
+             if(isCollected){
+                  ctx.fillStyle = "#00FF00";
+                  ctx.shadowColor = "rgba(0, 255, 0, 0.8)";
+             } else {
+                  ctx.fillStyle = "#FF3333";
+                  ctx.shadowColor = "rgba(255, 0, 0, 0.8)";
+             }
+             const countText = itemCounts[item] > 1 ? ` (${collectedCounts[item]}/${itemCounts[item]})` : '';
+             ctx.strokeText("- " + item + countText, orderX, y);
+             ctx.fillText("- " + item + countText, orderX, y);
+             ctx.globalAlpha = 1;
+        });
+        
+        if(hasTray) {
+            ctx.fillStyle = "#00FF00";
+            ctx.shadowColor = "rgba(0, 255, 0, 0.8)";
+            ctx.fillText("TRAY READY", orderX, orderY + ((uniqueItems.length + 1) * itemSpacing));
+        }
+        
+        // ...existing code for scanline effect...
+        ctx.restore();
     }
 }
 
@@ -772,15 +928,14 @@ function Customer(x, y, w, h){
     this.useWalkingFrame1 = true;
     this.dead = false;
     this.dragging = false; // new dragging flag
-    this.dragOffsetX = 0;  // new offset property
-    this.dragOffsetY = 0;  // new offset property
+    this.dragOffset = { x: 0, y: 0 }; // new offset property
     
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
                 // Use dragging logic for the dead body (body moves, but blood splat stays fixed)
-                this.img.x = logo.x + this.dragOffsetX;
-                this.img.y = logo.y + this.dragOffsetY;
+                this.img.x = logo.x + this.dragOffset.x;
+                this.img.y = logo.y + this.dragOffset.y;
             }
             // Initialize blood properties on first death
             if(this.bloodAlpha === undefined) {
@@ -805,6 +960,10 @@ function Customer(x, y, w, h){
             // Fade away over 600 frames (~30 sec at 20 fps)
             this.bloodAlpha = Math.max(this.bloodAlpha - (1/600), 0);
             return;
+        }
+        // NEW: If the customer has eaten, force upward motion (toward top exit)
+        if(this.hasEaten){
+            this.img.vY = -customerSpeed;
         }
         if(this.img.vY !== 0){ // moving => animate walking
             this.walkFrameCounter++;
