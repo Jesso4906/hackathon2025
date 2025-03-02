@@ -652,6 +652,13 @@ function render(){
     if (failScreenActive && input[82]) {
         location.reload();
     }
+
+    // Remove customers that have eaten and left through the top area
+    for (let i = customers.length - 1; i >= 0; i--){
+        if(customers[i].hasEaten && (customers[i].img.y + customers[i].img.h < 0)){
+            customers.splice(i, 1);
+        }
+    }
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -836,6 +843,10 @@ function Customer(x, y, w, h){
             // Fade away over 600 frames (~30 sec at 20 fps)
             this.bloodAlpha = Math.max(this.bloodAlpha - (1/600), 0);
             return;
+        }
+        // NEW: If the customer has eaten, force upward motion (toward top exit)
+        if(this.hasEaten){
+            this.img.vY = -customerSpeed;
         }
         if(this.img.vY !== 0){ // moving => animate walking
             this.walkFrameCounter++;
