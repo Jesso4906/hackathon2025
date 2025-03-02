@@ -361,10 +361,15 @@ function render(){
         
         // If near a customer holding a tray, complete the service
         if(currentCustomer && hasTray) {
-            const distance = Math.sqrt( (logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2 );
+            const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
             if (distance < 75) {
+                dialogBox.queue = [];
                 dialogBox.showDialog("Yum Yum");
                 currentCustomer.hasEaten = true;
+                // Release the customer's chair so new customers can take it
+                if(currentCustomer.chair) { 
+                    currentCustomer.chair.customer = null; 
+                }
                 currentCustomer.img.vY = -customerSpeed;
                 // Reset order state for new customers
                 currentOrder = null;
@@ -375,7 +380,7 @@ function render(){
                 drinksToBeDispensed.length = 0;
                 iceCreamToBeDispensed.length = 0;
                 currentCustomer = null;
-                readyCustomer = null; // ensure next candidate can be picked up
+                readyCustomer = null;
             }
         }
     }
@@ -904,15 +909,14 @@ function Customer(x, y, w, h){
     this.useWalkingFrame1 = true;
     this.dead = false;
     this.dragging = false; // new dragging flag
-    this.dragOffsetX = 0;  // new offset property
-    this.dragOffsetY = 0;  // new offset property
+    this.dragOffset = { x: 0, y: 0 }; // new offset property
     
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
                 // Use dragging logic for the dead body (body moves, but blood splat stays fixed)
-                this.img.x = logo.x + this.dragOffsetX;
-                this.img.y = logo.y + this.dragOffsetY;
+                this.img.x = logo.x + this.dragOffset.x;
+                this.img.y = logo.y + this.dragOffset.y;
             }
             // Initialize blood properties on first death
             if(this.bloodAlpha === undefined) {
