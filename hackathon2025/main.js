@@ -94,6 +94,14 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         return;
     }
     if (readyCustomer){
+        // Ensure the customer is at the register (within a threshold)
+        const threshold = 50;
+        if (Math.abs(readyCustomer.img.x - register.img.x) > threshold ||
+            Math.abs(readyCustomer.img.y - register.img.y) > threshold) {
+            //dialogBox.showDialog("Customer must be at the register to order");
+            return;
+        }
+        
         dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
         for (let i = 0; i < readyCustomer.order.length; i++) { 
