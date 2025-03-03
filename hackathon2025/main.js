@@ -88,6 +88,9 @@ const meatMachine = new Interactable(meatMachineImgRef, 100, 450, 50, 50, 0, fun
     }
 });
 interactables.push(meatMachine);
+
+let openDialog = false;
+
 const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(){
     if (currentOrder) {
         dialogBox.showDialog("You already have an order to prepare");
@@ -108,8 +111,6 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         foodToBeDispensed.length = 0;
         drinksToBeDispensed.length = 0;
         iceCreamToBeDispensed.length = 0;
-        
-        dialogBox.showDialog("Hello! I would like to order some food.");
         let orderString = "I would like ";
         for (let i = 0; i < readyCustomer.order.length; i++) { 
             if(menu.findIndex(item => item === readyCustomer.order[i]) < 8){
@@ -385,6 +386,9 @@ function render(){
             if (distance < 75) {
                 dialogBox.queue = [];
                 dialogBox.showDialog("Yum Yum");
+
+
+                
                 currentCustomer.hasEaten = true;
                 // Release the customer's chair so new customers can take it
                 if(currentCustomer.chair) { 
@@ -528,6 +532,7 @@ function render(){
     if(input[70]){
         if(hasTray){
             dialogBox.showDialog("Dropped tray, order progress reset.");
+
             finishedOrder = false;
             inventory.length = 0;
             // Recalculate pending ingredients from currentOrder so you can interact with machines again.
@@ -1108,7 +1113,6 @@ function DialogBox() {
     this.text = "";
     this.fullText = "";
     this.charIndex = 0;
-    this.queue = [];
     this.typeSpeed = 2; // characters per frame
     this.margin = 20;
 
@@ -1130,10 +1134,7 @@ function DialogBox() {
     }
     
     this.showDialog = function(text) {
-        if (this.isActive) {
-            this.queue.push(text);
-            return;
-        }
+        this.options = null;
         this.isActive = true;
         this.fullText = text;
         this.text = "";
@@ -1237,11 +1238,6 @@ function DialogBox() {
             // If still typing, complete the current text
             this.charIndex = this.fullText.length;
             this.text = this.fullText;
-        } else if (this.queue.length > 0) {
-            // Instead of calling showDialog, directly replace with next dialog
-            this.fullText = this.queue.shift();
-            this.text = "";
-            this.charIndex = 0;
         } else {
             // Close dialog
             this.isActive = false;
