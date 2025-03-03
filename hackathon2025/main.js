@@ -49,9 +49,9 @@ const mapWalls = [
     // bathroom wall
     new Image(document.getElementById("wall"), 200, 450, 550, 50, 0),
     // Counter
-    new Image(document.getElementById("counter"), 200, 100, 50, 200 , 0),
+    new Image(document.getElementById("counter"), 200, 10, 50, 380 , 0),
     // kitchen-lobby wall
-    new Image(document.getElementById("wall"), 200, 275, 50, 1000, 0),
+    new Image(document.getElementById("wall"), 200, 450, 50, 1000, 0),
     
 ];
 
@@ -361,7 +361,7 @@ function render(){
     }
 
     if(customers.length < 10 && (customerSpawnTimer * renderRate) >= nextSpawnTime * 1000){
-        const newCustomer = new Customer(register.img.x + 25, 0, 50, 50);
+        const newCustomer = new Customer(register.img.x + 50, 0, 50, 50);
         newCustomer.img.vY = customerSpeed;
         customers.push(newCustomer);
         customerSpawnTimer = 0;
