@@ -208,6 +208,8 @@ const iceCreamDispenser = new Interactable(iceCreamDispenserImg, 0, 250, 50, 50,
 interactables.push(iceCreamDispenser);
 
 const traysImg = document.getElementById("trays");
+const filledTrayImgRef = document.getElementById("filledTray"); // NEW: Reference to filled tray image
+
 const trays = new Interactable(traysImg, 200, 250, 25, 25, 0, function(){
     if(!currentOrder) {
         dialogBox.showDialog("I need an order first!");
@@ -216,6 +218,14 @@ const trays = new Interactable(traysImg, 200, 250, 25, 25, 0, function(){
     if(!finishedOrder) {
         dialogBox.showDialog("I need to finish preparing the order first!");
         return;
+    }
+    if(hasTray) { // Already holding a tray
+        dialogBox.showDialog("You already have a tray!");
+        return;
+    }
+    if(customers.some(c => c.dragging)){
+         dialogBox.showDialog("Cannot pick up tray while dragging a body!");
+         return;
     }
     hasTray = true;
 });
@@ -400,10 +410,35 @@ function render(){
         money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
     }
 
-    logo.update();
     for (const wall of mapWalls) {
         wall.update();
     }
+
+    // Draw the filled tray image if the player is holding a tray
+    if(hasTray){
+        let trayX = logo.x;
+        let trayY = logo.y;
+        
+        // Adjust tray position based on player rotation
+        if(logo.angle === 0) { // facing up: reduce offset
+            trayY = logo.y;
+            trayX = logo.x + 12;
+        } else if(logo.angle === Math.PI) { // facing down (unchanged)
+            trayY = logo.y + 25;
+            trayX = logo.x + 12;
+        } else if(logo.angle === Math.PI/2) { // facing right (unchanged)
+            trayX = logo.x + 25;
+            trayY = logo.y + 12;
+        } else if(logo.angle === 3*Math.PI/2) { // facing left: reduce offset
+            trayX = logo.x;
+            trayY = logo.y + 12;
+        }
+        
+        ctx.drawImage(filledTrayImgRef, trayX, trayY, 25, 25);
+    }
+
+    logo.update();
+    
 
     let hungryCustomers=0;
     // Update customers but don't draw them yet
@@ -460,7 +495,8 @@ function render(){
     // NEW: Killing mechanic - outline nearest customer in red when nearby and kill on F key press
     // Modified kill mechanic section to skip dead customers
     // Modify kill prompt section: only show prompt if no body is being dragged.
-    if(input[16] && !customers.some(c => c.dragging)) { // when Shift is held and not dragging a body
+    // Modify kill menu condition to add !hasTray:
+    if(input[16] && !hasTray && !customers.some(c => c.dragging)) { 
         let nearestDistance = 60;
         let nearestCustomer = null;
         for (const customer of customers) {
@@ -485,58 +521,77 @@ function render(){
             ctx.restore();
         }
     } else {
-        // Reset targeting if Shift is not held or if dragging a body
+        // Reset targeting if Shift is not held, holding a tray, or if dragging a body
         customers.forEach(customer => customer.targeted = false);
     }
     // Modify F key handler:
     if(input[70]){
-        // Check if already dragging a body:
-        let dragged = customers.find(c => c.dragging);
-        if(dragged){
-            // Drop the body
-            dragged.dragging = false;
-            console.debug("Dropped dead body");
-        } else {
-            let executed = false;
-            // First, try to kill a living customer as before
-            for (let i = 0; i < customers.length; i++){
-                if(customers[i].targeted && !customers[i].dead){
-                    customers[i].dead = true;
-                    // Check if this customer's order is the current order
-                    if(customers[i].order === currentOrder) {
-                        currentOrder = null;
-                        foodToBeDispensed.length = 0;
-                        drinksToBeDispensed.length = 0;
-                        iceCreamToBeDispensed.length = 0;
-                        finishedOrder = false;
-                    }
-                    executed = true;
-                    // Fix: update readyCustomer so that the next available customer is selected
-                    readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
-                    break;
+        if(hasTray){
+            dialogBox.showDialog("Dropped tray, order progress reset.");
+            finishedOrder = false;
+            inventory.length = 0;
+            // Recalculate pending ingredients from currentOrder so you can interact with machines again.
+            foodToBeDispensed.length = 0;
+            drinksToBeDispensed.length = 0;
+            iceCreamToBeDispensed.length = 0;
+            for (let i = 0; i < currentOrder.length; i++) {
+                if (menu.findIndex(item => item === currentOrder[i]) < 8) {
+                    foodToBeDispensed.push(currentOrder[i]);
+                } else if (menu.findIndex(item => item === currentOrder[i]) < 11) {
+                    drinksToBeDispensed.push(currentOrder[i]);
+                } else {
+                    iceCreamToBeDispensed.push(currentOrder[i]);
                 }
             }
-            // If no kill was executed, check for a nearby dead customer to start dragging
-            if(!executed){
-                 for (let i = 0; i < customers.length; i++){
-                     if(customers[i].dead && !customers[i].dragging){
-                         let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
-                         let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
-                         let distance = Math.sqrt(dx*dx+dy*dy);
-                         if(distance < 60){ // threshold for dragging
-                             customers[i].dragging = true;
-                             // Save the offset from player's position to the dead body position
-                             customers[i].dragOffsetX = customers[i].img.x - logo.x;
-                             customers[i].dragOffsetY = customers[i].img.y - logo.y;
-                             console.debug("Started dragging dead body, offset:", customers[i].dragOffsetX, customers[i].dragOffsetY);
-                             executed = true;
-                             break;
+            hasTray = false;
+            input[70] = false;
+        } else {
+            let dragged = customers.find(c => c.dragging);
+            if(dragged){
+                dragged.dragging = false;
+                console.debug("Dropped dead body");
+            } else {
+                let executed = false;
+                // First, try to kill a living customer as before
+                for (let i = 0; i < customers.length; i++){
+                    if(customers[i].targeted && !customers[i].dead){
+                        customers[i].dead = true;
+                        // Check if this customer's order is the current order
+                        if(customers[i].order === currentOrder) {
+                            currentOrder = null;
+                            foodToBeDispensed.length = 0;
+                            drinksToBeDispensed.length = 0;
+                            iceCreamToBeDispensed.length = 0;
+                            finishedOrder = false;
+                        }
+                        executed = true;
+                        // Fix: update readyCustomer so that the next available customer is selected
+                        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+                        break;
+                    }
+                }
+                // If no kill was executed, check for a nearby dead customer to start dragging
+                if(!executed){
+                     for (let i = 0; i < customers.length; i++){
+                         if(customers[i].dead && !customers[i].dragging){
+                             let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
+                             let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                             let distance = Math.sqrt(dx*dx+dy*dy);
+                             if(distance < 60){ // threshold for dragging
+                                 customers[i].dragging = true;
+                                 // Save the offset from player's position to the dead body position
+                                 customers[i].dragOffsetX = customers[i].img.x - logo.x;
+                                 customers[i].dragOffsetY = customers[i].img.y - logo.y;
+                                 console.debug("Started dragging dead body, offset:", customers[i].dragOffsetX, customers[i].dragOffsetY);
+                                 executed = true;
+                                 break;
+                             }
                          }
                      }
-                 }
+                }
             }
+            input[70] = false;
         }
-        input[70] = false;
     }
     
     // Update fadeAlpha for slower fade in when kill is in range
@@ -777,6 +832,38 @@ function render(){
         // ...existing code for scanline effect...
         ctx.restore();
     }
+
+    // After drawing customers, draw a rope between the player and any dragged body
+    customers.forEach(customer => {
+        if(customer.dragging) {
+            const playerCenter = { x: logo.x + logo.w/2, y: logo.y + logo.h/2 };
+            const bodyCenter = { x: customer.img.x + customer.img.w/2, y: customer.img.y + customer.img.h/2 };
+            const dx = bodyCenter.x - playerCenter.x;
+            const dy = bodyCenter.y - playerCenter.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            if(distance > 40) { // only draw if sufficiently apart
+                // Calculate midpoint and then a control point offset perpendicular to the rope direction
+                const midX = (playerCenter.x + bodyCenter.x) / 2;
+                const midY = (playerCenter.y + bodyCenter.y) / 2;
+                // Sag increases with distance (limit sag max to 50 pixels)
+                const sagFactor = Math.min(distance / 3, 50);
+                // Perpendicular unit vector components
+                const perpX = -dy / distance;
+                const perpY = dx / distance;
+                const controlX = midX + perpX * sagFactor;
+                const controlY = midY + perpY * sagFactor;
+                ctx.save();
+                ctx.strokeStyle = "#8B4513"; // brown rope color
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(playerCenter.x, playerCenter.y);
+                ctx.quadraticCurveTo(controlX, controlY, bodyCenter.x, bodyCenter.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    });
+    
 }
 
 var updateLoop = window.setInterval(render, renderRate);
@@ -927,17 +1014,52 @@ function Customer(x, y, w, h){
     this.walkFrameCounter = 0;
     this.useWalkingFrame1 = true;
     this.dead = false;
-    this.dragging = false; // new dragging flag
-    this.dragOffset = { x: 0, y: 0 }; // new offset property
+    this.dragging = false; // flag for dragging
+    // Keep dragOffset for initial offset (set on pickup)
+    this.dragOffset = { x: 0, y: 0 };
+    // Add physics properties for rotation
+    this.rotation = 0;
+    this.angularVelocity = 0;
+    this.lastDx = 0;
+    this.lastDy = 0;
     
     this.update = function update(){
         if(this.dead){
             if(this.dragging){
-                // Use dragging logic for the dead body (body moves, but blood splat stays fixed)
-                this.img.x = logo.x + this.dragOffset.x;
-                this.img.y = logo.y + this.dragOffset.y;
+                let desiredX = logo.x + this.dragOffset.x;
+                let desiredY = logo.y + this.dragOffset.y;
+                
+                const dx = desiredX - this.img.x;
+                const dy = desiredY - this.img.y;
+                
+                // Reduced rotation response
+                if(Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                    const deltaChange = Math.abs((dx - this.lastDx) + (dy - this.lastDy));
+                    // Reduced multiplier from 0.01 to 0.003
+                    this.angularVelocity += deltaChange * 0.003;
+                    // Add maximum angular velocity cap
+                    this.angularVelocity = Math.min(Math.max(this.angularVelocity, -0.1), 0.1);
+                }
+                
+                this.img.x += dx * 0.15;
+                this.img.y += dy * 0.15;
+                
+                this.rotation += this.angularVelocity;
+                // Increased damping from 0.95 to 0.9 for quicker stabilization
+                this.angularVelocity *= 0.9;
+                
+                this.lastDx = dx;
+                this.lastDy = dy;
+                
+                this.img.angle = this.rotation;
+            } else {
+                // Reset physics when dropped
+                this.angularVelocity = 0;
+                // Don't reset rotation to 0 when dropped, let it stay at current angle
+                this.img.angle = this.rotation;
             }
-            // Initialize blood properties on first death
+            
+            // Rest of dead body rendering...
             if(this.bloodAlpha === undefined) {
                 this.bloodAlpha = 1;
             }
