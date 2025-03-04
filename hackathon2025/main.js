@@ -1231,9 +1231,13 @@ function Customer(x, y, w, h){
         else if (this.img.vY > 0) this.img.angle = Math.PI;
         else if (this.img.vY < 0) this.img.angle = 0;
 
-        // When sitting at a chair, orient towards the table
-        if (this.chair && !this.hasEaten && Math.abs(this.img.x - this.chair.img.x) < 5 && Math.abs(this.img.y - this.chair.img.y) < 5) {
-            this.img.angle = this.targetAngle;
+        // When sitting at a chair, orient towards the table (only facing up or down)
+        if (this.chair && !this.hasEaten && 
+            Math.abs(this.img.x - this.chair.x) < 10 && 
+            Math.abs(this.img.y - this.chair.y) < 10) {
+            let tableCenterY = this.chair.tableY + this.chair.tableHeight / 2;
+            // If customer is above table center, face down (Math.PI); otherwise, face up (0)
+            this.img.angle = this.img.y < tableCenterY ? Math.PI : 0;
             this.img.vX = 0;
             this.img.vY = 0;
         }
