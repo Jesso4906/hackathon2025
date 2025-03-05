@@ -946,7 +946,7 @@ function Table(type, x, y) {
             new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y -30, x, y, 100, 50),
             new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + -30, x, y, 100, 50),
             new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 50, x, y, 100, 50),
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 5, x, y, 100, 50)
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 50, x, y, 100, 50)
         ]
     }
     else if (type==="booth")
@@ -1062,7 +1062,7 @@ function Customer(x, y, w, h){
     this.pathfindDelay = 0;
     this.avoidanceDirection = 1;
 
-    this.targetAngle - null;
+    this.targetAngle = null;
     
     this.update = function update(){
         if(this.dead){
@@ -1142,7 +1142,7 @@ function Customer(x, y, w, h){
                 this.avoidanceDirection *= -1;
             }
 
-            if(this.movementState === "horrizontal"){
+            if(this.movementState === "horizontal"){
                 if(Math.abs(this.img.x - targetX) > 5){
                     this.img.vX = this.img.x > targetX ? -customerSpeed : customerSpeed;
                 } else{
@@ -1183,7 +1183,7 @@ function Customer(x, y, w, h){
         this.img.x += this.img.vX;
         this.img.y += this.img.vY;
 
-        if(this.img.vY !== 0 || this.img.vY !== 0){ // moving => animate walking
+        if(this.img.vX !== 0 || this.img.vY !== 0){ // moving => animate walking
             this.walkFrameCounter++;
             if(this.walkFrameCounter >= 10){
                 this.useWalkingFrame1 = !this.useWalkingFrame1;
