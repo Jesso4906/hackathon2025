@@ -98,7 +98,7 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
     }
     if (readyCustomer){
         // Ensure the customer is at the register (within a threshold)
-        const threshold = 50;
+        const threshold = 75; // move this up a bit from 50 to 75
         if (Math.abs(readyCustomer.img.x - register.img.x) > threshold ||
             Math.abs(readyCustomer.img.y - register.img.y) > threshold) {
             return;
@@ -131,19 +131,33 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         dialogBox.showDialog(orderString);
         currentOrder = readyCustomer.order;
         readyCustomer.hasOrdered = true;
+
+        let nearestChair = null;
+        let shortestDist = Infinity;
         
         for (const table of tables) {
             for (const chair of table.chairs) {
                 if (!chair.customer) {
                     const distanceToChair = Math.sqrt((readyCustomer.img.x - chair.img.x)**2 + (readyCustomer.img.y - chair.img.y)**2);
-                    chair.customer = readyCustomer;
-                    readyCustomer.chair = chair;
-                    readyCustomer.img.vY = ((chair.img.y - readyCustomer.img.y) / distanceToChair) * customerSpeed;
-                    readyCustomer.img.vX = ((chair.img.x - readyCustomer.img.x) / distanceToChair) * customerSpeed;
-                    
-                    break;
+                    if(distanceToChair < shortestDist) {
+                        shortestDist = distanceToChair;
+                        nearestChair = chair;
+                    }
                 }
             }
+        }
+
+        if(nearestChair) {
+            const tableCenter = { x: nearestChair.tableX + nearestChair.tableWidth/2, y: nearestChair.tableY = nearestChair.tableHeight/2};
+
+            const angleToTable = Math.atan2(
+                tableCenter.y - nearestChair.img.y,
+                tableCenter.x - nearestChair.img.x
+            );
+
+            nearestChair.customer = readyCustomer;
+            readyCustomer.chair = nearestChair;
+            readyCustomer.targetAngle = angleToTable;
         }
         currentCustomer = readyCustomer;
         readyCustomer = null;
@@ -457,11 +471,22 @@ function render(){
         }
         // Only non-dead customers join the order line
         if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
-            if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
+            const queuePosition = customers.filter(c => !c.dead && !c.hasOrdered && !c.hasEaten).indexOf(customer);
+            const targetY = register.img.y - queuePosition * (customer.img.h + 10);
+
+            if(queuePosition === 0 && Math.abs(customer.img.y - register.img.y) < 5) {
                 customer.img.vY = 0;
-                readyCustomer = readyCustomer == null ? customer : readyCustomer;
+                readyCustomer = customer;
             } else {
-                customer.img.vY = customerSpeed;
+                if (customer.img.y > targetY + 5){
+                    customer.img.vY = -customerSpeed;
+                }
+                else if(customer.img.y < targetY - 5){
+                    customer.img.vY = customerSpeed;
+                }
+                else{
+                    customer.img.vY = 0;
+                }
             }
             hungryCustomers++;
         }
@@ -892,13 +917,17 @@ function Rect(x, y, w, h, color){
     }
 }
 
-function Chair(img, x, y) {
+function Chair(img, x, y, tableX, tableY, tableWidth, tableHeight) {
     this.img = img;
     this.x = x;
     this.y = y;
     this.w = 30;
     this.h = 30;
     this.customer = null;
+    this.tableX = tableX;
+    this.tableY = tableY;
+    this.tableWidth = tableWidth;
+    this.tableHeight = tableHeight;
     
     // Set the image position to match the chair position
     this.img.x = x;
@@ -914,25 +943,25 @@ function Table(type, x, y) {
     {
         this.tableImg = new Image(document.getElementById("doubleTable"), x, y, 100, 50, 0);
         this.chairs = [
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y -30),
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + -30),
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 50),
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 50)
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y -30, x, y, 100, 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + -30, x, y, 100, 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 50, x, y, 100, 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 60, y + 5, x, y, 100, 50)
         ]
     }
     else if (type==="booth")
     {
         this.tableImg = new Image(document.getElementById("boothTable"), x, y, 50, 50, 0);
         this.chairs = [
-            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 10),
-            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 30),
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 10, x, y, 50, 50),
+            new Chair(new Image(document.getElementById("boothChair"), x, y, 30, 30, 0), x + 10, y + 30, x, y, 50, 50),
         ]
     }
     else { // "single"
         this.tableImg = new Image(document.getElementById("table"), x, y, 50, 50, 0);
         this.chairs = [
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 10),
-            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 30, y + 10),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 10, y + 10, x, y, 50, 50),
+            new Chair(new Image(document.getElementById("chair"), x, y, 30, 30, 0), x + 30, y + 10, x, y, 50, 50),
         ]
     }
     
@@ -1027,6 +1056,13 @@ function Customer(x, y, w, h){
     this.angularVelocity = 0;
     this.lastDx = 0;
     this.lastDy = 0;
+
+    this.movementState = "vertical";
+    this.blocked = false;
+    this.pathfindDelay = 0;
+    this.avoidanceDirection = 1;
+
+    this.targetAngle - null;
     
     this.update = function update(){
         if(this.dead){
@@ -1088,11 +1124,66 @@ function Customer(x, y, w, h){
             this.bloodAlpha = Math.max(this.bloodAlpha - (1/600), 0);
             return;
         }
-        // NEW: If the customer has eaten, force upward motion (toward top exit)
-        if(this.hasEaten){
-            this.img.vY = -customerSpeed;
+        // collision check here for pathfinding(add more stuff here later for new objects)
+        for (const wall of mapWalls){
+            if(this.willCollide(wall, this.img.vX, this.img.vY)){
+                this.blocked = true;
+                break;
+            }
         }
-        if(this.img.vY !== 0){ // moving => animate walking
+
+        if(!this.hasOrdered && !this.hasEaten){
+            let targetX = register.img.x + register.img.w + 30;
+
+            if(this.blocked || this.pathfindDelay <= 0) {
+                this.movementState = this.movementState === "vertical" ? "horizontal" : "vertical";
+                this.blocked = false;
+                this.pathfindDelay = 20;
+                this.avoidanceDirection *= -1;
+            }
+
+            if(this.movementState === "horrizontal"){
+                if(Math.abs(this.img.x - targetX) > 5){
+                    this.img.vX = this.img.x > targetX ? -customerSpeed : customerSpeed;
+                } else{
+                    this.img.vX = 0;
+                }
+            } else{
+                this.img.vX = 0;
+            }
+        }
+            if(this.chair && !this.hasEaten){
+                let targetX = this.chair.img.x;
+                let targetY = this.chair.img.y;
+
+                if(this.movementState === "vertical"){
+                    if(Math.abs(this.img.y - targetY) > 5){
+                        this.img.vY = this.img.y > targetY ? -customerSpeed : customerSpeed;
+                        this.img.vX = 0;
+                    } else{
+                        this.movementState = "horizontal";
+                    }
+                } else{
+                    if (Math.abs(this.img.x - targetX) > 5){
+                        this.img.vX = this.img.x > targetX ? -customerSpeed : customerSpeed;
+                        this.img.vY = 0;
+                    }
+                    else{
+                        this.movementState = "vertical";
+                    }
+                }
+            } else if (this.hasEaten){
+                this.img.vX = 0;
+                this.img.vY = -customerSpeed;
+            }
+        
+
+        this.pathfindDelay--;
+        //heres where the magic happens. Instead of calling update its added right here oh yeah
+        this.img.x += this.img.vX;
+        this.img.y += this.img.vY;
+
+        if(this.img.vY !== 0 || this.img.vY !== 0){ // moving => animate walking
             this.walkFrameCounter++;
             if(this.walkFrameCounter >= 10){
                 this.useWalkingFrame1 = !this.useWalkingFrame1;
@@ -1104,7 +1195,32 @@ function Customer(x, y, w, h){
         } else { // standing
             this.img.ref = this.targeted ? this.images.killStand : this.images.stand;
         }
+
+        if(this.img.vX > 0) this.img.angle = Math.PI/2;
+        else if (this.img.vX < 0) this.img.angle = 3*Math.PI/2;
+        else if (this.img.vY > 0) this.img.angle = Math.PI;
+        else if (this.img.vY < 0) this.img.angle = 0;
+
+        //make cust face toward table when seated---
+        if(this.chair  && !this.hasEaten && Math.abs(this.img.x - this.chair.x) < 10 && Math.abs(this.img.y - this.chair.y) < 10){
+            let tableCenterY = this.chair.tableY + this.chair.tableHeight / 2;
+
+            this.img.angle = this.img.y < tableCenterY ? Math.PI : 0;
+
+            this.img.vX = 0;
+            this.img.vY = 0;
+        }
         this.img.update();
+        
+    }
+
+    this.willCollide = function(obstacle, vX, vY){
+        let nextX = this.img.x + vX;
+        let nextY = this.img.y + vY;
+        return (nextX < obstacle.x + obstacle.w &&
+            nextX + this.img.w > obstacle.x &&
+            nextY < obstacle.y + obstacle.h &&
+            nextY + this.img.h > obstacle.y);
     }
 }
 
