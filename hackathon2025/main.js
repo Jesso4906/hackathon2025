@@ -600,6 +600,8 @@ function render(){
                         // Check if this customer's order is the current order
                         if(customers[i].order === currentOrder) {
                             currentOrder = null;
+                            //currentCustomer = null;
+                            orderRecievedTime = 0;
                             foodToBeDispensed.length = 0;
                             drinksToBeDispensed.length = 0;
                             iceCreamToBeDispensed.length = 0;
