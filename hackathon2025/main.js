@@ -686,8 +686,8 @@ function render(){
     ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
     ctx.fillStyle = "#3333FF";
     const wageText = "$" + hourlyWage + "/hr";
-    ctx.strokeText(wageText, rightAlign - 100, margin + 75);
-    ctx.fillText(wageText, rightAlign - 100, margin + 75);
+    ctx.strokeText(wageText, rightAlign - 125, margin + 75);
+    ctx.fillText(wageText, rightAlign - 125, margin + 75);
     
 
     // Kill counter with blood-red glow effect
@@ -707,8 +707,8 @@ function render(){
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.fillStyle = "#FF3333";
         const orderTimeText = "Order Time: " + timeSinceOrder + "s / " + maxOrderWaitTime / 1000 + "s";
-        ctx.strokeText(orderTimeText, rightAlign, margin + 150);
-        ctx.fillText(orderTimeText, rightAlign, margin + 150);
+        ctx.strokeText(orderTimeText, rightAlign, margin + 135);
+        ctx.fillText(orderTimeText, rightAlign, margin + 135);
     }
 
     // Display time since customer arrived at register
@@ -719,14 +719,14 @@ function render(){
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.fillStyle = "#FF3333";
         const arrivalTimeText = "Arrival Time: " + timeSinceArrival + "s / " + maxRegisterWaitTime / 1000 + "s";
-        ctx.strokeText(arrivalTimeText, rightAlign, margin + 180);
-        ctx.fillText(arrivalTimeText, rightAlign, margin + 180);
+        ctx.strokeText(arrivalTimeText, rightAlign, margin + 155);
+        ctx.fillText(arrivalTimeText, rightAlign, margin + 155);
     }
     
     // Add subtle scanline effect over the HUD area
     const scanlineHeight = 2;
-    const hudWidth = 200;
-    const hudHeight = 120;
+    const hudWidth = 250;
+    const hudHeight = 160;
     ctx.globalAlpha = 0.1;
     for(let y = margin; y < margin + hudHeight; y += scanlineHeight * 2) {
         ctx.fillStyle = "#000";
