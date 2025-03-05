@@ -131,7 +131,7 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         dialogBox.showDialog(orderString);
         currentOrder = readyCustomer.order;
         readyCustomer.hasOrdered = true;
-
+        
         let nearestChair = null;
         let shortestDist = Infinity;
         
@@ -149,7 +149,7 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
 
         if(nearestChair) {
             const tableCenter = { x: nearestChair.tableX + nearestChair.tableWidth/2, y: nearestChair.tableY = nearestChair.tableHeight/2};
-
+            
             const angleToTable = Math.atan2(
                 tableCenter.y - nearestChair.img.y,
                 tableCenter.x - nearestChair.img.x
@@ -473,17 +473,17 @@ function render(){
         if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
             const queuePosition = customers.filter(c => !c.dead && !c.hasOrdered && !c.hasEaten).indexOf(customer);
             const targetY = register.img.y - queuePosition * (customer.img.h + 10);
-
+            
             if(queuePosition === 0 && Math.abs(customer.img.y - register.img.y) < 5) {
                 customer.img.vY = 0;
                 readyCustomer = customer;
             } else {
                 if (customer.img.y > targetY + 5){
                     customer.img.vY = -customerSpeed;
-                }
+                } 
                 else if(customer.img.y < targetY - 5){
                     customer.img.vY = customerSpeed;
-                }
+                } 
                 else{
                     customer.img.vY = 0;
                 }
@@ -1056,12 +1056,12 @@ function Customer(x, y, w, h){
     this.angularVelocity = 0;
     this.lastDx = 0;
     this.lastDy = 0;
-
+    
     this.movementState = "vertical";
     this.blocked = false;
     this.pathfindDelay = 0;
     this.avoidanceDirection = 1;
-
+    
     this.targetAngle = null;
     
     this.update = function update(){
@@ -1134,7 +1134,7 @@ function Customer(x, y, w, h){
 
         if(!this.hasOrdered && !this.hasEaten){
             let targetX = register.img.x + register.img.w + 30;
-
+            
             if(this.blocked || this.pathfindDelay <= 0) {
                 this.movementState = this.movementState === "vertical" ? "horizontal" : "vertical";
                 this.blocked = false;
@@ -1153,30 +1153,30 @@ function Customer(x, y, w, h){
             }
         }
             if(this.chair && !this.hasEaten){
-                let targetX = this.chair.img.x;
-                let targetY = this.chair.img.y;
+            let targetX = this.chair.img.x;
+            let targetY = this.chair.img.y;
 
                 if(this.movementState === "vertical"){
                     if(Math.abs(this.img.y - targetY) > 5){
-                        this.img.vY = this.img.y > targetY ? -customerSpeed : customerSpeed;
-                        this.img.vX = 0;
+                    this.img.vY = this.img.y > targetY ? -customerSpeed : customerSpeed;
+                    this.img.vX = 0;
                     } else{
                         this.movementState = "horizontal";
-                    }
+                }
                 } else{
                     if (Math.abs(this.img.x - targetX) > 5){
-                        this.img.vX = this.img.x > targetX ? -customerSpeed : customerSpeed;
-                        this.img.vY = 0;
-                    }
+                    this.img.vX = this.img.x > targetX ? -customerSpeed : customerSpeed;
+                    this.img.vY = 0;
+                }
                     else{
                         this.movementState = "vertical";
-                    }
+            }
                 }
             } else if (this.hasEaten){
-                this.img.vX = 0;
-                this.img.vY = -customerSpeed;
-            }
-        
+            this.img.vX = 0;
+            this.img.vY = -customerSpeed;
+        }
+
 
         this.pathfindDelay--;
         //heres where the magic happens. Instead of calling update its added right here oh yeah
@@ -1195,7 +1195,7 @@ function Customer(x, y, w, h){
         } else { // standing
             this.img.ref = this.targeted ? this.images.killStand : this.images.stand;
         }
-
+        
         if(this.img.vX > 0) this.img.angle = Math.PI/2;
         else if (this.img.vX < 0) this.img.angle = 3*Math.PI/2;
         else if (this.img.vY > 0) this.img.angle = Math.PI;
@@ -1211,16 +1211,16 @@ function Customer(x, y, w, h){
             this.img.vY = 0;
         }
         this.img.update();
-        
+
     }
 
     this.willCollide = function(obstacle, vX, vY){
         let nextX = this.img.x + vX;
         let nextY = this.img.y + vY;
         return (nextX < obstacle.x + obstacle.w &&
-            nextX + this.img.w > obstacle.x &&
-            nextY < obstacle.y + obstacle.h &&
-            nextY + this.img.h > obstacle.y);
+                nextX + this.img.w > obstacle.x &&
+                nextY < obstacle.y + obstacle.h &&
+                nextY + this.img.h > obstacle.y);
     }
 }
 
