@@ -148,8 +148,11 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         }
 
         if(nearestChair) {
-            const tableCenter = { x: nearestChair.tableX + nearestChair.tableWidth/2, y: nearestChair.tableY = nearestChair.tableHeight/2};
-            
+            const tableCenter = {
+                x: nearestChair.tableX + nearestChair.tableWidth/2,
+                y: nearestChair.tableY + nearestChair.tableHeight/2
+            };
+
             const angleToTable = Math.atan2(
                 tableCenter.y - nearestChair.img.y,
                 tableCenter.x - nearestChair.img.x
