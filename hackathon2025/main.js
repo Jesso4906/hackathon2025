@@ -490,15 +490,20 @@ function render(){
                     registerArrivalTime = Date.now();
                     readyCustomer = customer;
                 }
-                // readyCustomer = readyCustomer == null ? customer : readyCustomer;
+                hungryCustomers++;
             } else {
                 customer.img.vY = customerSpeed;
             }
-            hungryCustomers++;
         }
         // Update position without drawing
         customer.img.x += customer.img.vX;
         customer.img.y += customer.img.vY;
+    }
+    if (!readyCustomer) {
+        const nextCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten && c.img.y === 0);
+        if (nextCustomer) {
+            registerArrivalTime  = Date.now();
+        }
     }
 
     // Draw tables and chairs first
