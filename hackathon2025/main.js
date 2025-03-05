@@ -64,7 +64,12 @@ const tables = [
 ];
 
 const interactables = [];
-let readyCustomer;
+let readyCustomer = null;
+
+const maxRegisterWaitTime = 15 * 1000; 
+const maxOrderWaitTime = 15 * 1000;
+let registerArrivalTime = 0;
+let orderRecievedTime = 0;
 const customerSpeed = 1;
 
 const foodToBeDispensed = [];
@@ -97,13 +102,15 @@ const register = new Interactable(registerImgRef, 200, 150, 25, 25, 0, function(
         return;
     }
     if (readyCustomer){
+
         // Ensure the customer is at the register (within a threshold)
         const threshold = 50;
         if (Math.abs(readyCustomer.img.x - register.img.x) > threshold ||
             Math.abs(readyCustomer.img.y - register.img.y) > threshold) {
             return;
         }
-        
+
+        orderRecievedTime = Date.now();
         // Clear any leftover state from previous orders
         hasTray = false;
         finishedOrder = false;
@@ -266,6 +273,23 @@ function failGame() {
 }
 
 function render(){
+
+    // check for failure condition
+    
+
+    let currentTime = Date.now();
+    if (orderRecievedTime > 0) 
+    {
+        if (currentTime - orderRecievedTime > maxOrderWaitTime) {
+            failScreenActive = true;
+        }
+    }
+    if (registerArrivalTime > 0) {
+        if (currentTime - registerArrivalTime > maxRegisterWaitTime) {
+            failScreenActive = true;
+        }
+    }
+    
     // --- Begin Screen Shake Effect ---
     ctx.save();
     if(input[16] && customers.some(c => c.targeted)){
@@ -404,9 +428,9 @@ function render(){
                 drinksToBeDispensed.length = 0;
                 iceCreamToBeDispensed.length = 0;
                 currentCustomer = null;
-                readyCustomer = null;
+                orderRecievedTime = 0;
             }
-        }
+        } 
     }
 
     if(time < 17*60){
@@ -444,6 +468,7 @@ function render(){
     logo.update();
     
 
+
     let hungryCustomers=0;
     // Update customers but don't draw them yet
     for (const customer of customers) {
@@ -458,8 +483,14 @@ function render(){
         // Only non-dead customers join the order line
         if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
             if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
+                // Set velocity to 0 when customer reaches the register
                 customer.img.vY = 0;
-                readyCustomer = readyCustomer == null ? customer : readyCustomer;
+                if (readyCustomer == null) {
+                    console.log("Customer arrived at register");
+                    registerArrivalTime = Date.now();
+                    readyCustomer = customer;
+                }
+                // readyCustomer = readyCustomer == null ? customer : readyCustomer;
             } else {
                 customer.img.vY = customerSpeed;
             }
@@ -488,9 +519,9 @@ function render(){
     if (readyCustomer && readyCustomer.dead) {
         readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
     }
-    if (!readyCustomer) {
-        readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
-    }
+    // if (!readyCustomer) {
+    //     readyCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten);
+    // }
 
     for (const interactable of interactables) {
         interactable.update();
@@ -657,6 +688,30 @@ function render(){
     const killText = "☠ " + kills;
     ctx.strokeText(killText, rightAlign, margin + 115);
     ctx.fillText(killText, rightAlign, margin + 115);
+
+    // Display time since order recieved
+    if (orderRecievedTime > 0) {
+        let timeSinceOrder = Math.floor((currentTime - orderRecievedTime) / 1000);
+        ctx.font = "bold 20px monospace";
+        ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillStyle = "#FF3333";
+        const orderTimeText = "Order Time: " + timeSinceOrder + "s / " + maxOrderWaitTime / 1000 + "s";
+        ctx.strokeText(orderTimeText, rightAlign, margin + 150);
+        ctx.fillText(orderTimeText, rightAlign, margin + 150);
+    }
+
+    // Display time since customer arrived at register
+    if (registerArrivalTime > 0) {
+        let timeSinceArrival = Math.floor((currentTime - registerArrivalTime) / 1000);
+        ctx.font = "bold 20px monospace";
+        ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillStyle = "#FF3333";
+        const arrivalTimeText = "Arrival Time: " + timeSinceArrival + "s / " + maxRegisterWaitTime / 1000 + "s";
+        ctx.strokeText(arrivalTimeText, rightAlign, margin + 180);
+        ctx.fillText(arrivalTimeText, rightAlign, margin + 180);
+    }
     
     // Add subtle scanline effect over the HUD area
     const scanlineHeight = 2;
@@ -731,6 +786,7 @@ function render(){
                         let angleToDead = Math.atan2(dy, dx);
                         if(Math.abs(angleDifference(coneDir, angleToDead)) <= halfAngle) {
                             console.debug("Dead body detected near alive customer at", cx, cy);
+                            failScreenActive = true;
                         }
                     }
                 }
