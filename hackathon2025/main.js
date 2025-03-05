@@ -680,6 +680,16 @@ function render(){
     ctx.strokeText(moneyText, rightAlign, margin + 75);
     ctx.fillText(moneyText, rightAlign, margin + 75);
     
+    // Wage display with blue glow effect to the left of the money
+    ctx.font = "bold 20px monospace";
+    ctx.shadowColor = 'rgba(0, 0, 255, 0.8)';
+    ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+    ctx.fillStyle = "#3333FF";
+    const wageText = "$" + hourlyWage + "/hr";
+    ctx.strokeText(wageText, rightAlign - 100, margin + 75);
+    ctx.fillText(wageText, rightAlign - 100, margin + 75);
+    
+
     // Kill counter with blood-red glow effect
     ctx.font = "bold 35px monospace";
     ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
