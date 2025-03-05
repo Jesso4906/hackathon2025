@@ -409,7 +409,7 @@ function render(){
             const distance = Math.sqrt((logo.x - currentCustomer.img.x)**2 + (logo.y - currentCustomer.img.y)**2);
             if (distance < 75) {
                 dialogBox.queue = [];
-                dialogBox.showDialog("Yum Yum");
+                dialogBox.showDialog("Yum Yum!");
 
 
                 
