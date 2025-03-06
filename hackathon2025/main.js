@@ -627,7 +627,7 @@ function render(){
                      for (let i = 0; i < customers.length; i++){
                          if(customers[i].dead && !customers[i].dragging){
                              let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
-                             let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                             let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
                              let distance = Math.sqrt(dx*dx+dy*dy);
                              if(distance < 60){ // threshold for dragging
                                  customers[i].dragging = true;
@@ -862,11 +862,14 @@ function render(){
         const pulseIntensity = Math.sin(failScreenTime * 4) * 0.5 + 0.5;
         const promptColor = `rgba(0, 255, 255, ${0.5 + pulseIntensity * 0.5})`;
         drawPixelText("PRESS [R] TO RESTART BUSINESS", canvas.width / 2, canvas.height / 2 + 80, 24, promptColor);
-    }s
-
-    // Listen for R to restart
-    if (failScreenActive && input[82]) {
-        location.reload();
+        
+        // Listen for R key to restart - move inside this block
+        if (input[82]) {
+            console.log("Restart triggered");
+            location.reload();
+            // Reset key state
+            input[82] = false;
+        }
     }
 
     // Remove customers that have eaten and left through the top area
@@ -1577,7 +1580,7 @@ function drawFailScreenBackground() {
     ctx.fillText("CLOSED BY HEALTH DEPT.", signX, signY);
     
     ctx.restore();
-    s
+    
     ctx.restore();
 }
 
