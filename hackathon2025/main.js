@@ -268,8 +268,68 @@ let useWalkingFrame1 = true;
 var failScreenActive = false;
 var failScreenAlpha = 0;
 
+// Add new variables for fail screen effects
+var failNoiseFrames = [];  // Pre-generated noise frames
+var failGlitchTimer = 0;   // Timer for glitch effects
+var failGlitchLines = [];  // Current glitch lines
+var failTextFlicker = 1;   // Text opacity for flickering effect
+var failScreenTime = 0;    // Total time the fail screen has been active
+
+// Pre-generate noise textures for the fail screen (call once at the beginning)
+function generateFailNoiseFrames() {
+    const noiseFrameCount = 10;
+    const noiseSize = 100; // Small texture to be scaled up for pixelated look
+    
+    for (let f = 0; f < noiseFrameCount; f++) {
+        const noiseCanvas = document.createElement('canvas');
+        noiseCanvas.width = noiseSize;
+        noiseCanvas.height = noiseSize;
+        const noiseCtx = noiseCanvas.getContext('2d');
+        
+        const imgData = noiseCtx.createImageData(noiseSize, noiseSize);
+        const data = imgData.data;
+        
+        // Generate grainy noise
+        for (let i = 0; i < data.length; i += 4) {
+            const noise = Math.floor(Math.random() * 40); // Lower range for subtler effect
+            data[i] = noise;     // R
+            data[i+1] = noise;   // G
+            data[i+2] = noise;   // B
+            data[i+3] = Math.random() > 0.85 ? 255 : 0; // Sparse noise (mostly transparent)
+        }
+        
+        noiseCtx.putImageData(imgData, 0, 0);
+        failNoiseFrames.push(noiseCanvas);
+    }
+}
+
+// Call once to generate the noise frames
+generateFailNoiseFrames();
+
 function failGame() {
     failScreenActive = true;
+    failScreenTime = 0;
+    failGlitchTimer = 0;
+    generateFailGlitches(); // Initial glitch lines
+}
+
+function generateFailGlitches() {
+    failGlitchLines = [];
+    const glitchCount = Math.floor(Math.random() * 5) + 3;
+    
+    for (let i = 0; i < glitchCount; i++) {
+        const y = Math.floor(Math.random() * canvas.height);
+        const height = Math.floor(Math.random() * 30) + 5;
+        const offset = Math.floor(Math.random() * 40) - 20;
+        
+        failGlitchLines.push({
+            y: y,
+            height: height,
+            offset: offset,
+            opacity: Math.random() * 0.7 + 0.3,
+            color: Math.random() > 0.5 ? "#00FFFF" : "#FF00FF"
+        });
+    }
 }
 
 function render(){
@@ -813,22 +873,148 @@ function render(){
 
     // Draw fail screen overlay if active
     if (failScreenActive) {
-        // Fade in
-        if (failScreenAlpha < 1) {
-            failScreenAlpha += 0.01;
+        failScreenTime += renderRate / 1000;
+        
+        // Fade in background
+        if (failScreenAlpha < 0.85) { // Don't go fully opaque for better aesthetics
+            failScreenAlpha += 0.015;
         }
+        
+        // Update glitch effect every 0.2 seconds
+        failGlitchTimer += renderRate / 1000;
+        if (failGlitchTimer > 0.2) {
+            generateFailGlitches();
+            failGlitchTimer = 0;
+        }
+        
+        // Flickering text effect
+        failTextFlicker = 0.7 + (Math.sin(Date.now() * 0.01) * 0.3);
+        
+        // Draw background overlay
         ctx.save();
         ctx.globalAlpha = failScreenAlpha;
-        ctx.fillStyle = "white";
+        ctx.fillStyle = "#000022"; // Dark blue background
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
-
+        
+        // Draw digital noise overlay
         ctx.save();
-        ctx.fillStyle = "black";
-        ctx.font = "50px Arial";
-        ctx.fillText("You Failed", canvas.width / 2 - 100, canvas.height / 2);
-        ctx.font = "24px Arial";
-        ctx.fillText("Press R to Restart", canvas.width / 2 - 110, canvas.height / 2 + 50);
+        ctx.globalAlpha = 0.1;
+        const noiseFrame = failNoiseFrames[Math.floor(Date.now() / 100) % failNoiseFrames.length];
+        // Draw tiled noise for full coverage
+        for (let x = 0; x < canvas.width; x += 100) {
+            for (let y = 0; y < canvas.height; y += 100) {
+                ctx.drawImage(noiseFrame, x, y, 100, 100);
+            }
+        }
+        ctx.restore();
+        
+        // Draw horizontal scanlines
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        for (let y = 0; y < canvas.height; y += 4) {
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, y, canvas.width, 1);
+        }
+        ctx.restore();
+        
+        // Draw glitch lines
+        ctx.save();
+        for (const glitch of failGlitchLines) {
+            ctx.globalAlpha = glitch.opacity;
+            ctx.fillStyle = glitch.color;
+            
+            // Main glitch line
+            ctx.fillRect(0, glitch.y, canvas.width, glitch.height);
+            
+            // Offset duplicate for RGB split effect
+            ctx.globalAlpha = glitch.opacity * 0.6;
+            ctx.fillRect(glitch.offset, glitch.y, canvas.width, glitch.height);
+        }
+        ctx.restore();
+        
+        // Draw content with DROP SHADOW for depth
+        ctx.save();
+        
+        // Main "SYSTEM FAILURE" text
+        ctx.font = "bold 60px monospace";
+        ctx.textAlign = "center";
+        
+        // Red digital warning glow
+        ctx.shadowColor = "#FF0000";
+        ctx.shadowBlur = 15;
+        ctx.globalAlpha = failTextFlicker;
+        
+        // Text outline
+        ctx.strokeStyle = "#FF0000";
+        ctx.lineWidth = 2;
+        ctx.strokeText("SYSTEM FAILURE", canvas.width / 2, canvas.height / 2 - 30);
+        
+        // Text fill
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText("SYSTEM FAILURE", canvas.width / 2, canvas.height / 2 - 30);
+        
+        // Smaller text with different effects
+        ctx.shadowColor = "#00FFFF"; // Cyan glow
+        ctx.shadowBlur = 10;
+        ctx.font = "30px monospace";
+        ctx.fillStyle = "#AAFFFF";  // Light cyan
+        ctx.fillText("EXECUTION TERMINATED", canvas.width / 2, canvas.height / 2 + 30);
+        
+        // Restart instruction
+        ctx.shadowColor = "#FFFFFF";
+        ctx.shadowBlur = 5;
+        ctx.font = "20px monospace";
+        ctx.fillStyle = "#FFFFFF";
+        // Blinking effect for the restart text
+        if (Math.sin(Date.now() / 200) > 0) {
+            ctx.fillText("PRESS [R] TO REBOOT SYSTEM", canvas.width / 2, canvas.height / 2 + 80);
+        }
+        
+        // Display failure reason if available
+        if (currentTime - orderRecievedTime > maxOrderWaitTime) {
+            ctx.fillStyle = "#FF5555";
+            ctx.fillText("ERROR: CUSTOMER SERVICE PROTOCOL VIOLATION", canvas.width / 2, canvas.height / 2 - 90);
+        } else if (registerArrivalTime > 0 && currentTime - registerArrivalTime > maxRegisterWaitTime) {
+            ctx.fillStyle = "#FF5555";
+            ctx.fillText("ERROR: CUSTOMER WAIT THRESHOLD EXCEEDED", canvas.width / 2, canvas.height / 2 - 90);
+        } else {
+            ctx.fillStyle = "#FF5555";
+            ctx.fillText("ERROR: CRITICAL SYSTEMS COMPROMISED", canvas.width / 2, canvas.height / 2 - 90);
+        }
+        
+        // Draw glitch boxes
+        for (let i = 0; i < 5; i++) {
+            if (Math.random() > 0.7) {
+                const boxWidth = Math.random() * 100 + 50;
+                const boxHeight = Math.random() * 30 + 10;
+                const boxX = Math.random() * canvas.width;
+                const boxY = Math.random() * canvas.height;
+                
+                ctx.globalAlpha = Math.random() * 0.3 + 0.1;
+                ctx.fillStyle = Math.random() > 0.5 ? "#FF00FF" : "#00FFFF";
+                ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+            }
+        }
+        
+        // Add flickering colored vignette
+        const gradient = ctx.createRadialGradient(
+            canvas.width/2, canvas.height/2, 100, 
+            canvas.width/2, canvas.height/2, canvas.width/2
+        );
+        gradient.addColorStop(0, "rgba(0,0,0,0)");
+        gradient.addColorStop(1, `rgba(40,0,60,${0.4 + Math.sin(Date.now() / 1000) * 0.1})`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Score display
+        ctx.font = "24px monospace";
+        ctx.fillStyle = "#AAFFFF";
+        ctx.textAlign = "left";
+        ctx.fillText(`MONEY EARNED: $${Math.round(money * 100) / 100}`, canvas.width / 2 - 180, canvas.height / 2 + 130);
+        ctx.fillText(`BODIES PROCESSED: ${kills}`, canvas.width / 2 - 180, canvas.height / 2 + 160);
+        ctx.fillText(`TIME SURVIVED: ${Math.floor((time - 9*60) / 60)}h ${Math.floor((time - 9*60) % 60)}m`, canvas.width / 2 - 180, canvas.height / 2 + 190);
+        
         ctx.restore();
     }
 
