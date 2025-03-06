@@ -436,9 +436,12 @@ function render(){
         } 
     }
 
-    if(time < 17*60){
-        time += (renderRate / 1000) * timeScale;
-        money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    // Only update time and money when game is not in fail state
+    if (!failScreenActive) {
+        if(time < 17*60){
+            time += (renderRate / 1000) * timeScale;
+            money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+        }
     }
 
     for (const wall of mapWalls) {
@@ -475,32 +478,35 @@ function render(){
     let hungryCustomers=0;
     // Update customers but don't draw them yet
     for (const customer of customers) {
-        if (customer.chair) {
-            const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
-            if (distanceToChair <= 10) {
-                customer.img.vX = 0;
-                customer.img.vY = 0;
-                customer.hasOrdered=true;
-            }
-        }
-        // Only non-dead customers join the order line
-        if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
-            if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
-                // Set velocity to 0 when customer reaches the register
-                customer.img.vY = 0;
-                if (readyCustomer == null) {
-                    console.log("Customer arrived at register");
-                    registerArrivalTime = Date.now();
-                    readyCustomer = customer;
+        // Only process customer movement if the game isn't in fail state
+        if (!failScreenActive) {
+            if (customer.chair) {
+                const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
+                if (distanceToChair <= 10) {
+                    customer.img.vX = 0;
+                    customer.img.vY = 0;
+                    customer.hasOrdered=true;
                 }
-                hungryCustomers++;
-            } else {
-                customer.img.vY = customerSpeed;
             }
+            // Only non-dead customers join the order line
+            if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
+                if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
+                    // Set velocity to 0 when customer reaches the register
+                    customer.img.vY = 0;
+                    if (readyCustomer == null) {
+                        console.log("Customer arrived at register");
+                        registerArrivalTime = Date.now();
+                        readyCustomer = customer;
+                    }
+                    hungryCustomers++;
+                } else {
+                    customer.img.vY = customerSpeed;
+                }
+            }
+            // Only update position when game is not in fail state
+            customer.img.x += customer.img.vX;
+            customer.img.y += customer.img.vY;
         }
-        // Update position without drawing
-        customer.img.x += customer.img.vX;
-        customer.img.y += customer.img.vY;
     }
     if (!readyCustomer) {
         const nextCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten && c.img.y === 0);
@@ -681,12 +687,13 @@ function render(){
     ctx.strokeText(timeText, rightAlign, margin + 35);
     ctx.fillText(timeText, rightAlign, margin + 35);
     
-    // Money display with green matrix-style glow
+    // Money display with green matrix-style glow - format to 2 decimal places
+    const formattedMoney = money.toFixed(2);
     ctx.font = "bold 32px monospace";
     ctx.shadowColor = 'rgba(0, 255, 0, 0.8)';
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
     ctx.fillStyle = "#33FF33";
-    const moneyText = "$" + Math.round(money * 100) / 100;
+    const moneyText = "$" + formattedMoney;
     ctx.strokeText(moneyText, rightAlign, margin + 75);
     ctx.fillText(moneyText, rightAlign, margin + 75);
     
@@ -831,32 +838,31 @@ function render(){
         // Apply scanlines and CRT effect
         drawCRTEffect();
         
-        // Draw business shutdown notice with meat processing theme
-        drawGlitchedText("BUSINESS TERMINATED", canvas.width / 2, canvas.height / 2 - 80, 56);
+        // Draw business shutdown notice with meat processing theme - moved up
+        drawGlitchedText("BUSINESS TERMINATED", canvas.width / 2, canvas.height / 2 - 160, 56);
         
-        // Draw themed subtitle with blinking effect
+        // Draw themed subtitle with blinking effect - moved up
         if (Math.floor(failScreenTime * 2) % 2 === 0) {
-            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 20, 24, "#FF3333");
+            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 100, 24, "#FF3333");
         } else {
-            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 20, 24, "#FF0000");
+            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 100, 24, "#FF0000");
         }
         
-        // Show failure details with food-themed messaging
-        drawPixelText("HEALTH INSPECTOR NOTIFIED", canvas.width / 2, canvas.height / 2 + 20, 20, "#FF9900");
-        drawPixelText("RESTAURANT LICENSE REVOKED", canvas.width / 2, canvas.height / 2 + 50, 20, "#FF9900");
+        // Show failure details with food-themed messaging - moved up
+        drawPixelText("HEALTH INSPECTOR NOTIFIED", canvas.width / 2, canvas.height / 2 - 60, 20, "#FF9900");
+        drawPixelText("RESTAURANT LICENSE REVOKED", canvas.width / 2, canvas.height / 2 - 30, 20, "#FF9900");
         
-        // Draw meat stats
-        drawPixelText(`HUMAN MEAT PROCESSED: ${kills} UNITS`, canvas.width / 2, canvas.height / 2 + 90, 28, "#FF0000");
+        // Draw meat stats - moved up
+        drawPixelText(`HUMAN MEAT PROCESSED: ${kills} UNITS`, canvas.width / 2, canvas.height / 2, 28, "#FF0000");
         
-        // Show profit calculation from human meat
-        const meatProfit = kills * 150; // $150 per processed body
-        drawPixelText(`BLACK MARKET VALUE: $${meatProfit}`, canvas.width / 2, canvas.height / 2 + 125, 22, "#33FF33");
+        // Show profit calculation from human meat - moved up
+        drawPixelText(`EARNINGS: $${money.toFixed(2)}`, canvas.width / 2, canvas.height / 2 + 35, 22, "#33FF33");
         
-        // Draw restart prompt with pulse effect
+        // Draw restart prompt with pulse effect - moved up
         const pulseIntensity = Math.sin(failScreenTime * 4) * 0.5 + 0.5;
         const promptColor = `rgba(0, 255, 255, ${0.5 + pulseIntensity * 0.5})`;
-        drawPixelText("PRESS [R] TO RESTART BUSINESS", canvas.width / 2, canvas.height / 2 + 170, 24, promptColor);
-    }
+        drawPixelText("PRESS [R] TO RESTART BUSINESS", canvas.width / 2, canvas.height / 2 + 80, 24, promptColor);
+    }s
 
     // Listen for R to restart
     if (failScreenActive && input[82]) {
@@ -1348,7 +1354,7 @@ const dialogBox = new DialogBox();
 
 // Update test dialog messages with instructions
 //dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
-//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
+//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
 
@@ -1464,7 +1470,7 @@ function drawFailScreenBackground() {
     
     // Generate buildings with consistent pattern based on canvas size
     const buildingCount = Math.floor(canvas.width / 50);
-    const maxHeight = canvas.height * 0.6;
+    const maxHeight = canvas.height * 0.4; // Reduced height to keep cityscape lower
     
     for (let i = 0; i < buildingCount; i++) {
         // Calculate building properties deterministically for consistent look
@@ -1502,32 +1508,21 @@ function drawFailScreenBackground() {
         }
     }
     
-    // Add bloodied streets with glowing lines
-    ctx.fillStyle = "#0A0A0A";
-    ctx.fillRect(0, canvas.height - maxHeight * 0.4, canvas.width, 30);
+    // REMOVED: Street/road elements
     
-    // Street lines (reddish to suggest blood)
-    ctx.fillStyle = "#AA0000";
-    const lineCount = Math.floor(canvas.width / 40);
-    for (let i = 0; i < lineCount; i++) {
-        if ((i + Math.floor(failScreenTime * 2)) % 2 === 0) {
-            ctx.fillRect(i * 40, canvas.height - maxHeight * 0.4 + 14, 20, 2);
-        }
-    }
-    
-    // Add red mist near the bottom to suggest blood
-    const fogGradient = ctx.createLinearGradient(0, canvas.height - maxHeight * 0.4, 0, canvas.height);
-    fogGradient.addColorStop(0, "rgba(255, 0, 0, 0.05)");
-    fogGradient.addColorStop(0.5, "rgba(100, 0, 0, 0.1)");
-    fogGradient.addColorStop(1, "rgba(50, 0, 0, 0.05)");
+    // Add red mist near the bottom to suggest blood (but more subtle)
+    const fogGradient = ctx.createLinearGradient(0, canvas.height - maxHeight, 0, canvas.height);
+    fogGradient.addColorStop(0, "rgba(255, 0, 0, 0.02)");
+    fogGradient.addColorStop(0.5, "rgba(100, 0, 0, 0.05)");
+    fogGradient.addColorStop(1, "rgba(50, 0, 0, 0.02)");
     ctx.fillStyle = fogGradient;
-    ctx.fillRect(0, canvas.height - maxHeight * 0.4, canvas.width, maxHeight * 0.4);
+    ctx.fillRect(0, canvas.height - maxHeight, canvas.width, maxHeight);
     
     // Draw a few scattered burger/meat icons in the background
     for (let i = 0; i < 8; i++) {
         // Use deterministic positions based on canvas dimensions
         const x = (canvas.width / 8) * i + Math.sin(failScreenTime + i) * 10;
-        const y = canvas.height * 0.2 + Math.cos(failScreenTime * 0.5 + i) * 30;
+        const y = canvas.height * 0.7 + Math.cos(failScreenTime * 0.5 + i) * 30; // Moved down
         const size = 20 + Math.sin(failScreenTime * 0.3 + i * 0.5) * 5;
         
         // Draw stylized burger/meat shapes
@@ -1582,7 +1577,7 @@ function drawFailScreenBackground() {
     ctx.fillText("CLOSED BY HEALTH DEPT.", signX, signY);
     
     ctx.restore();
-    
+    s
     ctx.restore();
 }
 
