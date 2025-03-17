@@ -1,6 +1,7 @@
 # Evil Fast Food Restaurant Simulator (in a city)
 NNHS Hackathon 2025 project created by Emran Kohl, Bennett Jesso, Jack Krzyzanowski, and Ryan Krzyzanowski.
 
+# Winner of the Judge's Award
 DEVPOST link: https://devpost.com/software/urban-fast-food-restaraunt-simulator-in-a-city
 
 # Inspiration
