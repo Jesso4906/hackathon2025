@@ -267,9 +267,12 @@ let useWalkingFrame1 = true;
 
 var failScreenActive = false;
 var failScreenAlpha = 0;
+var glitchTimer = 0;
+var failScreenTime = 0;
 
 function failGame() {
     failScreenActive = true;
+    failScreenTime = 0; // Reset animation timer
 }
 
 function render(){
@@ -433,9 +436,12 @@ function render(){
         } 
     }
 
-    if(time < 17*60){
-        time += (renderRate / 1000) * timeScale;
-        money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+    // Only update time and money when game is not in fail state
+    if (!failScreenActive) {
+        if(time < 17*60){
+            time += (renderRate / 1000) * timeScale;
+            money += hourlyWage / (60 / timeScale) * (renderRate / 1000);
+        }
     }
 
     for (const wall of mapWalls) {
@@ -472,32 +478,35 @@ function render(){
     let hungryCustomers=0;
     // Update customers but don't draw them yet
     for (const customer of customers) {
-        if (customer.chair) {
-            const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
-            if (distanceToChair <= 10) {
-                customer.img.vX = 0;
-                customer.img.vY = 0;
-                customer.hasOrdered=true;
-            }
-        }
-        // Only non-dead customers join the order line
-        if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
-            if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
-                // Set velocity to 0 when customer reaches the register
-                customer.img.vY = 0;
-                if (readyCustomer == null) {
-                    console.log("Customer arrived at register");
-                    registerArrivalTime = Date.now();
-                    readyCustomer = customer;
+        // Only process customer movement if the game isn't in fail state
+        if (!failScreenActive) {
+            if (customer.chair) {
+                const distanceToChair = Math.sqrt((customer.img.x - customer.chair.img.x)**2 + (customer.img.y - customer.chair.img.y)**2);
+                if (distanceToChair <= 10) {
+                    customer.img.vX = 0;
+                    customer.img.vY = 0;
+                    customer.hasOrdered=true;
                 }
-                hungryCustomers++;
-            } else {
-                customer.img.vY = customerSpeed;
             }
+            // Only non-dead customers join the order line
+            if (!customer.dead && !customer.hasOrdered && !customer.hasEaten) {
+                if (customer.img.y >= register.img.y - hungryCustomers * (customer.img.h + 10)) {
+                    // Set velocity to 0 when customer reaches the register
+                    customer.img.vY = 0;
+                    if (readyCustomer == null) {
+                        console.log("Customer arrived at register");
+                        registerArrivalTime = Date.now();
+                        readyCustomer = customer;
+                    }
+                    hungryCustomers++;
+                } else {
+                    customer.img.vY = customerSpeed;
+                }
+            }
+            // Only update position when game is not in fail state
+            customer.img.x += customer.img.vX;
+            customer.img.y += customer.img.vY;
         }
-        // Update position without drawing
-        customer.img.x += customer.img.vX;
-        customer.img.y += customer.img.vY;
     }
     if (!readyCustomer) {
         const nextCustomer = customers.find(c => !c.dead && !c.hasOrdered && !c.hasEaten && c.img.y === 0);
@@ -618,7 +627,7 @@ function render(){
                      for (let i = 0; i < customers.length; i++){
                          if(customers[i].dead && !customers[i].dragging){
                              let dx = (logo.x + logo.w/2) - (customers[i].img.x + customers[i].img.w/2);
-                             let dy = (logo.y + customers[i].img.h/2) - (customers[i].img.y + customers[i].img.h/2);
+                             let dy = (logo.y + logo.h/2) - (customers[i].img.y + customers[i].img.h/2);
                              let distance = Math.sqrt(dx*dx+dy*dy);
                              if(distance < 60){ // threshold for dragging
                                  customers[i].dragging = true;
@@ -678,12 +687,13 @@ function render(){
     ctx.strokeText(timeText, rightAlign, margin + 35);
     ctx.fillText(timeText, rightAlign, margin + 35);
     
-    // Money display with green matrix-style glow
+    // Money display with green matrix-style glow - format to 2 decimal places
+    const formattedMoney = money.toFixed(2);
     ctx.font = "bold 32px monospace";
     ctx.shadowColor = 'rgba(0, 255, 0, 0.8)';
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
     ctx.fillStyle = "#33FF33";
-    const moneyText = "$" + Math.round(money * 100) / 100;
+    const moneyText = "$" + formattedMoney;
     ctx.strokeText(moneyText, rightAlign, margin + 75);
     ctx.fillText(moneyText, rightAlign, margin + 75);
     
@@ -813,28 +823,53 @@ function render(){
 
     // Draw fail screen overlay if active
     if (failScreenActive) {
-        // Fade in
-        if (failScreenAlpha < 1) {
-            failScreenAlpha += 0.01;
+        // Update fail screen animation timer
+        failScreenTime += renderRate / 1000;
+        glitchTimer += renderRate / 1000;
+        
+        // Fade in with a faster effect - ensure we reach full opacity
+        if (failScreenAlpha < 1.5) { // Going above 1.0 ensures complete opacity
+            failScreenAlpha += 0.02; 
         }
-        ctx.save();
-        ctx.globalAlpha = failScreenAlpha;
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-
-        ctx.save();
-        ctx.fillStyle = "black";
-        ctx.font = "50px Arial";
-        ctx.fillText("You Failed", canvas.width / 2 - 100, canvas.height / 2);
-        ctx.font = "24px Arial";
-        ctx.fillText("Press R to Restart", canvas.width / 2 - 110, canvas.height / 2 + 50);
-        ctx.restore();
-    }
-
-    // Listen for R to restart
-    if (failScreenActive && input[82]) {
-        location.reload();
+        
+        // Draw cyberpunk cityscape background with full opacity base layer
+        drawFailScreenBackground();
+        
+        // Apply scanlines and CRT effect
+        drawCRTEffect();
+        
+        // Draw business shutdown notice with meat processing theme - moved up
+        drawGlitchedText("BUSINESS TERMINATED", canvas.width / 2, canvas.height / 2 - 160, 56);
+        
+        // Draw themed subtitle with blinking effect - moved up
+        if (Math.floor(failScreenTime * 2) % 2 === 0) {
+            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 100, 24, "#FF3333");
+        } else {
+            drawPixelText("UNAUTHORIZED MEAT HARVESTING DETECTED", canvas.width / 2, canvas.height / 2 - 100, 24, "#FF0000");
+        }
+        
+        // Show failure details with food-themed messaging - moved up
+        drawPixelText("HEALTH INSPECTOR NOTIFIED", canvas.width / 2, canvas.height / 2 - 60, 20, "#FF9900");
+        drawPixelText("RESTAURANT LICENSE REVOKED", canvas.width / 2, canvas.height / 2 - 30, 20, "#FF9900");
+        
+        // Draw meat stats - moved up
+        drawPixelText(`HUMAN MEAT PROCESSED: ${kills} UNITS`, canvas.width / 2, canvas.height / 2, 28, "#FF0000");
+        
+        // Show profit calculation from human meat - moved up
+        drawPixelText(`EARNINGS: $${money.toFixed(2)}`, canvas.width / 2, canvas.height / 2 + 35, 22, "#33FF33");
+        
+        // Draw restart prompt with pulse effect - moved up
+        const pulseIntensity = Math.sin(failScreenTime * 4) * 0.5 + 0.5;
+        const promptColor = `rgba(0, 255, 255, ${0.5 + pulseIntensity * 0.5})`;
+        drawPixelText("PRESS [R] TO RESTART BUSINESS", canvas.width / 2, canvas.height / 2 + 80, 24, promptColor);
+        
+        // Listen for R key to restart - move inside this block
+        if (input[82]) {
+            console.log("Restart triggered");
+            location.reload();
+            // Reset key state
+            input[82] = false;
+        }
     }
 
     // Remove customers that have eaten and left through the top area
@@ -1322,7 +1357,7 @@ const dialogBox = new DialogBox();
 
 // Update test dialog messages with instructions
 //dialogBox.showDialog("Hello! Press SPACE to advance or close dialog messages.");
-//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
+//dialogBox.showDialog("This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!This will show up after the first one!");
 
 // Remove the separate space bar event listener since we're using the input array now
 
@@ -1421,4 +1456,298 @@ function angleDifference(a, b) {
     return diff;
 }
 
-//failGame();
+// Draw a dark urban cityscape in the background
+function drawFailScreenBackground() {
+    ctx.save();
+    
+    // Fully opaque base layer to hide the game completely
+    ctx.fillStyle = "rgba(0, 0, 0, 1.0)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Dark blue overlay for atmosphere
+    ctx.fillStyle = "rgba(0, 10, 30, 0.95)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw a pixelated cityscape silhouette
+    ctx.fillStyle = "#000000";
+    
+    // Generate buildings with consistent pattern based on canvas size
+    const buildingCount = Math.floor(canvas.width / 50);
+    const maxHeight = canvas.height * 0.4; // Reduced height to keep cityscape lower
+    
+    for (let i = 0; i < buildingCount; i++) {
+        // Calculate building properties deterministically for consistent look
+        const x = i * 50;
+        const width = 40 + (i % 3) * 10;
+        const heightFactor = 0.3 + Math.sin(i * 0.4) * 0.2 + Math.cos(i * 0.7) * 0.3;
+        const height = maxHeight * heightFactor;
+        ctx.fillRect(x, canvas.height - height, width, height);
+        
+        // Add windows to buildings
+        ctx.fillStyle = "#131313";
+        const windowRows = Math.floor(height / 20);
+        const windowCols = Math.floor(width / 15);
+        
+        for (let row = 0; row < windowRows; row++) {
+            for (let col = 0; col < windowCols; col++) {
+                // Randomly light up some windows
+                const windowSeed = Math.sin(i + row * col + failScreenTime / 2) * 10000;
+                const isLit = (windowSeed % 1) < 0.3;
+                
+                if (isLit) {
+                    const windowColor = (windowSeed % 3 < 1) ? "#FFCC44" : 
+                                       ((windowSeed % 3 < 2) ? "#88CCFF" : "#FF5533");
+                    ctx.fillStyle = windowColor;
+                } else {
+                    ctx.fillStyle = "#131313";
+                }
+                
+                ctx.fillRect(
+                    x + col * 15 + 3, 
+                    canvas.height - height + row * 20 + 5, 
+                    10, 10
+                );
+            }
+        }
+    }
+    
+    // REMOVED: Street/road elements
+    
+    // Add red mist near the bottom to suggest blood (but more subtle)
+    const fogGradient = ctx.createLinearGradient(0, canvas.height - maxHeight, 0, canvas.height);
+    fogGradient.addColorStop(0, "rgba(255, 0, 0, 0.02)");
+    fogGradient.addColorStop(0.5, "rgba(100, 0, 0, 0.05)");
+    fogGradient.addColorStop(1, "rgba(50, 0, 0, 0.02)");
+    ctx.fillStyle = fogGradient;
+    ctx.fillRect(0, canvas.height - maxHeight, canvas.width, maxHeight);
+    
+    // Draw a few scattered burger/meat icons in the background
+    for (let i = 0; i < 8; i++) {
+        // Use deterministic positions based on canvas dimensions
+        const x = (canvas.width / 8) * i + Math.sin(failScreenTime + i) * 10;
+        const y = canvas.height * 0.7 + Math.cos(failScreenTime * 0.5 + i) * 30; // Moved down
+        const size = 20 + Math.sin(failScreenTime * 0.3 + i * 0.5) * 5;
+        
+        // Draw stylized burger/meat shapes
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(failScreenTime * 0.1 + i);
+        
+        // Meat patty (reddish circle)
+        ctx.fillStyle = "#AA0000";
+        ctx.beginPath();
+        ctx.arc(0, 0, size/2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Burger bun (dark brown arc on top)
+        ctx.fillStyle = "#553311";
+        ctx.beginPath();
+        ctx.arc(0, -size/4, size/2, Math.PI, 0);
+        ctx.fill();
+        
+        // Blood dripping effect
+        if (Math.sin(failScreenTime * 2 + i) > 0.7) {
+            ctx.fillStyle = "#FF0000";
+            ctx.beginPath();
+            ctx.moveTo(-size/4, size/2);
+            ctx.lineTo(0, size);
+            ctx.lineTo(size/4, size/2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
+    }
+    
+    // Draw "CLOSED" sign
+    ctx.save();
+    const signX = canvas.width / 2;
+    const signY = canvas.height * 0.15;
+    const signWidth = canvas.width * 0.3;
+    const signHeight = canvas.height * 0.08;
+    
+    // Sign background with border
+    ctx.fillStyle = "#AA0000";
+    ctx.fillRect(signX - signWidth/2, signY - signHeight/2, signWidth, signHeight);
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(signX - signWidth/2, signY - signHeight/2, signWidth, signHeight);
+    
+    // "CLOSED" text
+    ctx.font = "bold 36px monospace";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("CLOSED BY HEALTH DEPT.", signX, signY);
+    
+    ctx.restore();
+    
+    ctx.restore();
+}
+
+// Draw CRT scanline effect
+function drawCRTEffect() {
+    ctx.save();
+    
+    // CRT curvature effect
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+    const cornerRadius = 200;
+    ctx.beginPath();
+    ctx.moveTo(0, cornerRadius);
+    ctx.arcTo(0, 0, cornerRadius, 0, cornerRadius);
+    ctx.lineTo(canvas.width - cornerRadius, 0);
+    ctx.arcTo(canvas.width, 0, canvas.width, cornerRadius, cornerRadius);
+    ctx.lineTo(canvas.width, canvas.height - cornerRadius);
+    ctx.arcTo(canvas.width, canvas.height, canvas.width - cornerRadius, canvas.height, cornerRadius);
+    ctx.lineTo(cornerRadius, canvas.height);
+    ctx.arcTo(0, canvas.height, 0, canvas.height - cornerRadius, cornerRadius);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Scanlines effect - darker for more contrast
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    for (let y = 0; y < canvas.height; y += 4) {
+        ctx.fillRect(0, y, canvas.width, 2);
+    }
+    
+    // Random static noise - more visible
+    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+    for (let i = 0; i < 300; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const size = Math.random() * 3 + 1;
+        ctx.fillRect(x, y, size, size);
+    }
+    
+    // Blood spatter effects
+    if (Math.random() < 0.02) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+        ctx.beginPath();
+        ctx.arc(x, y, Math.random() * 30 + 10, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Screen flicker effect
+    if (Math.random() < 0.05) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.1})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Random horizontal glitch lines
+    if (Math.random() < 0.1) {
+        const y = Math.random() * canvas.height;
+        const height = Math.random() * 10 + 5;
+        ctx.fillStyle = "rgba(50, 200, 255, 0.1)";
+        ctx.fillRect(0, y, canvas.width, height);
+    }
+    
+    // Add bloodshot vignette effect around the edges
+    const vignetteGradient = ctx.createRadialGradient(
+        canvas.width/2, canvas.height/2, Math.min(canvas.width, canvas.height) * 0.4,
+        canvas.width/2, canvas.height/2, Math.min(canvas.width, canvas.height) * 0.9
+    );
+    vignetteGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    vignetteGradient.addColorStop(0.8, "rgba(50, 0, 0, 0.1)");
+    vignetteGradient.addColorStop(1, "rgba(100, 0, 0, 0.3)");
+    ctx.fillStyle = vignetteGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.restore();
+}
+
+// Draw pixelated text with glitch effect
+function drawGlitchedText(text, x, y, size) {
+    ctx.save();
+    
+    // Ensure text is properly sized for different screens
+    const scaledSize = Math.min(size, canvas.width * 0.05);
+    
+    // Main text
+    ctx.font = `bold ${scaledSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FF0000";
+    ctx.fillText(text, x, y);
+    
+    // Text shadow
+    ctx.fillStyle = "#AA0000";
+    ctx.fillText(text, x + 2, y + 2);
+    
+    // Random glitch effect
+    if (Math.random() < 0.3) {
+        const glitchX = x + (Math.random() * 10 - 5);
+        const glitchY = y + (Math.random() * 10 - 5);
+        ctx.fillStyle = "#FFFFFF";
+        
+        // Split text into parts for glitching
+        const textLength = text.length;
+        const part1End = Math.floor(Math.random() * textLength);
+        const part2Start = Math.floor(Math.random() * (textLength - part1End)) + part1End;
+        
+        const part1 = text.substring(0, part1End);
+        const part2 = text.substring(part1End, part2Start);
+        const part3 = text.substring(part2Start);
+        
+        // Draw glitched text components - meat theme colors (red, bloody)
+        if (Math.random() < 0.5) {
+            ctx.fillStyle = "#FF3333";
+            ctx.fillText(part1, x - 2, y);
+            ctx.fillStyle = "#AA0000";
+            ctx.fillText(part2, glitchX, glitchY);
+            ctx.fillStyle = "#FF0000";
+            ctx.fillText(part3, x + 2, y);
+        } else {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.globalAlpha = 0.7;
+            ctx.fillText(text, glitchX, glitchY);
+        }
+        
+        // Occasionally add meat/blood splatter effect
+        if (Math.random() < 0.2) {
+            ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
+            for (let i = 0; i < 3; i++) {
+                const splatterX = x + (Math.random() * 100 - 50);
+                const splatterY = y + (Math.random() * 40 - 20);
+                const splatterSize = Math.random() * 8 + 2;
+                ctx.beginPath();
+                ctx.arc(splatterX, splatterY, splatterSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+    
+    ctx.restore();
+}
+
+// Draw pixelated text
+function drawPixelText(text, x, y, size, color) {
+    ctx.save();
+    
+    // Ensure text is properly sized for different screens
+    const scaledSize = Math.min(size, canvas.width * 0.04);
+    
+    ctx.font = `${scaledSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // Shadow effect
+    ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
+    // Main text
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    
+    // Add subtle glow
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.globalAlpha = 0.5;
+    ctx.fillText(text, x, y);
+    
+    ctx.restore();
+}
